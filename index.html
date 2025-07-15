@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>飲み会モチベーション共有アプリ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            background-color: #000;
+            color: #f3f4f6;
+        }
+        .mochiy-pop-one-regular {
+            font-family: 'Mochiy Pop One', sans-serif;
+        }
+        .app-screen {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            flex-direction: column;
+        }
+        .app-screen.is-active {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-container { display: none; opacity: 0; transition: opacity 0.3s ease-in-out; }
+        .modal-container.is-open { display: flex; opacity: 1; }
+        .element-bg { background-color: #1C1C1E; }
+        .element-border { border-color: #3A3A3C; }
+        .interactive-item:active { background-color: #3A3A3C; }
+        .interactive-item { transition: background-color 0.1s ease-out, transform 0.1s ease-out; }
+        .interactive-item:active { transform: scale(0.97); }
+        .hidden { display: none !important; }
+
+        /* Custom Slider Styles */
+        input[type=range] {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; cursor: pointer; outline: none;
+            border-radius: 9999px; background: #3A3A3C; height: 12px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            height: 32px; width: 32px; background-color: #f6e05e;
+            border-radius: 50%;
+            margin-top: -10px;
+        }
+        /* Animation bubbles */
+        .carbonation-bubble {
+            fill: #fefcbf;
+            opacity: 0.6;
+        }
+        .popping-bubble {
+            fill: none;
+            stroke: #fff;
+            stroke-width: 0.5;
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <div id="app-container" class="max-w-md mx-auto min-h-screen bg-black relative">
+
+        <!-- Screen 1: Motivation Slider -->
+        <div id="main-screen" class="app-screen">
+            <header class="bg-black/80 backdrop-blur-lg p-4 sticky top-0 z-20 w-full">
+                <h1 class="text-lg font-bold text-center text-gray-100">今日の飲みベは？</h1>
+                <div id="auth-status" class="text-center text-xs text-gray-400 mt-1 h-4"></div>
+            </header>
+            <main class="flex-grow flex flex-col justify-center items-center p-8 w-full">
+                <div id="beer-container" class="w-64 h-80 mx-auto my-8 mt-4">
+                    <svg id="beer-svg" viewBox="0 0 150 200" class="w-full h-full" overflow="visible">
+                        <defs>
+                             <clipPath id="glass-clip">
+                                <path d="M 30 20 V 185 C 30 195, 120 195, 120 185 V 20 Z" />
+                            </clipPath>
+                            <linearGradient id="glass-shine" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:white; stop-opacity:0" />
+                                <stop offset="50%" style="stop-color:white; stop-opacity:0.3" />
+                                <stop offset="100%" style="stop-color:white; stop-opacity:0" />
+                            </linearGradient>
+                        </defs>
+                        <path d="M 25 10 C 25 20, 125 20, 125 10 L 122 185 C 122 195, 28 195, 28 185 Z" fill="#e2e8f0" opacity="0.1"/>
+                        <g clip-path="url(#glass-clip)">
+                            <path id="beer-liquid" d="" fill="#fbbF24" />
+                            <g id="carbonation-bubbles"></g>
+                        </g>
+                        <path id="beer-foam" d="" fill="#ffffff"/>
+                        <g id="popping-bubbles"></g>
+                        <path d="M 20 5 C 20 20, 130 20, 130 5 L 125 190 C 125 200, 25 200, 25 190 Z" fill="transparent" stroke="#e2e8f0" stroke-width="0.5" opacity="0.3" />
+                        <path d="M 125 50 C 150 60, 150 130, 125 140 L 122 135 C 140 125, 140 65, 122 55 Z" fill="#e2e8f0" opacity="0.2"/>
+                        <path d="M 40 30 C 45 80, 45 150, 40 180" fill="none" stroke="url(#glass-shine)" stroke-width="5" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <div class="w-full max-w-xs">
+                    <input type="range" id="motivation-slider" min="0" max="100" value="50" class="w-full">
+                    <div id="percentage-display" class="text-center h-20 mt-4">
+                        <!-- SVG Percentage will be rendered here -->
+                    </div>
+                </div>
+            </main>
+            <footer class="p-4 sticky bottom-0 w-full">
+                <button id="publish-motivation-btn" class="w-full bg-amber-600 text-white font-bold py-4 rounded-2xl hover:bg-amber-700 interactive-item">
+                    みんなの飲みベを見る
+                </button>
+            </footer>
+        </div>
+
+        <!-- Screen 2: Results -->
+        <div id="results-screen" class="app-screen">
+            <header class="bg-black/80 backdrop-blur-lg p-4 sticky top-0 z-20 border-b border-gray-800 w-full flex items-center justify-between">
+                <button id="back-to-main-btn" class="text-amber-500 text-sm font-bold interactive-item px-2 py-1 rounded-lg">&lt; 戻る</button>
+                <h1 class="text-lg font-bold text-gray-100">みんなの飲みベ</h1>
+                <div class="w-12"></div>
+            </header>
+            <main id="participants-list" class="flex-grow w-full p-4 space-y-3 overflow-y-auto">
+                <!-- Participants will be rendered here -->
+            </main>
+        </div>
+
+        <!-- Profile Setup Modal -->
+        <div id="profile-setup-modal" class="modal-container fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
+             <div class="element-bg rounded-2xl w-full max-w-sm p-6 text-center">
+                 <h2 class="text-xl font-bold mb-4">ようこそ！</h2>
+                 <p class="text-gray-400 mb-6">みんなに表示される<br>あなたの名前を設定してください。</p>
+                 <div id="avatar-preview" class="mb-6 w-24 h-24 mx-auto"></div>
+                 <input type="text" id="name-input" placeholder="名前を入力" class="w-full bg-black border element-border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4">
+                 <button id="save-profile-button" class="w-full bg-amber-600 text-white font-bold py-3 rounded-lg hover:bg-amber-700 interactive-item disabled:bg-gray-600 disabled:cursor-not-allowed">保存して始める</button>
+             </div>
+        </div>
+        
+        <!-- Loading overlay -->
+        <div id="loading-overlay" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 transition-opacity duration-300">
+             <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-amber-500"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, serverTimestamp, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- App State Management ---
+        const AppState = {
+            LOADING: 'loading',
+            NEEDS_PROFILE: 'needs_profile',
+            READY: 'ready',
+        };
+        let currentAppState = AppState.LOADING;
+        let currentScreen = 'main';
+
+        // --- Firebase & Global Variables ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'jp-drinking-app-complete-v1';
+        let db, auth, userId = null, userProfile = null, unsubscribePosts = null;
+
+        const elements = {
+            screens: {
+                main: document.getElementById('main-screen'),
+                results: document.getElementById('results-screen'),
+            },
+            loadingOverlay: document.getElementById('loading-overlay'),
+            authStatus: document.getElementById('auth-status'),
+            slider: document.getElementById('motivation-slider'),
+            percentageDisplay: document.getElementById('percentage-display'),
+            beer: {
+                liquid: document.getElementById('beer-liquid'),
+                foam: document.getElementById('beer-foam'),
+                carbonationBubbles: document.getElementById('carbonation-bubbles'),
+                poppingBubbles: document.getElementById('popping-bubbles'),
+            },
+            publishBtn: document.getElementById('publish-motivation-btn'),
+            backBtn: document.getElementById('back-to-main-btn'),
+            participantsList: document.getElementById('participants-list'),
+            profileModal: {
+                container: document.getElementById('profile-setup-modal'),
+                avatar: document.getElementById('avatar-preview'),
+                nameInput: document.getElementById('name-input'),
+                saveBtn: document.getElementById('save-profile-button'),
+            }
+        };
+
+        // --- Master UI Control Function ---
+        function renderUI() {
+            elements.loadingOverlay.classList.toggle('hidden', currentAppState !== AppState.LOADING);
+            elements.profileModal.container.classList.toggle('is-open', currentAppState === AppState.NEEDS_PROFILE);
+
+            if (currentAppState === AppState.READY) {
+                Object.values(elements.screens).forEach(s => s.classList.remove('is-active'));
+                if (elements.screens[currentScreen]) {
+                    elements.screens[currentScreen].classList.add('is-active');
+                }
+            } else {
+                Object.values(elements.screens).forEach(s => s.classList.remove('is-active'));
+            }
+        }
+
+        // --- App Initialization ---
+        async function main() {
+            renderUI();
+            try {
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setupEventListeners();
+                initPercentageDisplay();
+                await initializeUser();
+                startAnimations();
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+                currentAppState = AppState.READY;
+                renderUI();
+            }
+        }
+
+        // --- Authentication Flow ---
+        function getAuthenticatedUser() {
+            return new Promise((resolve, reject) => {
+                const unsubscribe = onAuthStateChanged(auth, async (user) => {
+                    unsubscribe();
+                    if (user) {
+                        resolve(user);
+                    } else {
+                        try {
+                            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                            const userCredential = initialAuthToken 
+                                ? await signInWithCustomToken(auth, initialAuthToken) 
+                                : await signInAnonymously(auth);
+                            resolve(userCredential.user);
+                        } catch (e) {
+                            reject(e);
+                        }
+                    }
+                }, reject);
+            });
+        }
+        
+        async function initializeUser() {
+            try {
+                const user = await getAuthenticatedUser();
+                userId = user.uid;
+                const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
+                const userDoc = await getDoc(userDocRef);
+                
+                if (userDoc.exists()) {
+                    userProfile = userDoc.data();
+                    elements.authStatus.innerHTML = `<p>${userProfile.name} <span class="text-gray-500">(${userId.substring(0,4)})</span></p>`;
+                    currentAppState = AppState.READY;
+                } else {
+                    currentAppState = AppState.NEEDS_PROFILE;
+                }
+            } catch (error) {
+                console.error("User initialization failed:", error);
+                currentAppState = AppState.READY;
+            }
+            renderUI();
+        }
+
+        // --- Event Listeners ---
+        function setupEventListeners() {
+            elements.publishBtn.addEventListener('click', publishAndShowResults);
+            elements.backBtn.addEventListener('click', () => {
+                if(unsubscribePosts) {
+                    unsubscribePosts();
+                    unsubscribePosts = null;
+                }
+                stopResultsAnimation();
+                currentScreen = 'main';
+                renderUI();
+            });
+            
+            elements.slider.addEventListener('input', (e) => {
+                updateBeerVisualization(parseInt(e.target.value));
+            });
+
+            const pm = elements.profileModal;
+            pm.nameInput.addEventListener('input', () => {
+                const name = pm.nameInput.value.trim();
+                pm.saveBtn.disabled = !name;
+                pm.avatar.innerHTML = generateAvatar(name || '？');
+            });
+            pm.saveBtn.addEventListener('click', saveProfile);
+        }
+
+        // --- Core Logic ---
+        async function publishAndShowResults() {
+            if (currentAppState !== AppState.READY) return;
+            
+            currentAppState = AppState.LOADING;
+            renderUI();
+            
+            const motivation = parseInt(elements.slider.value);
+            const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
+            
+            try {
+                await setDoc(postDocRef, {
+                    motivation: motivation,
+                    name: userProfile.name,
+                    updatedAt: serverTimestamp()
+                });
+                
+                setupRealtimeListener();
+                currentScreen = 'results';
+            } catch (error) {
+                console.error("Failed to publish motivation:", error);
+                currentScreen = 'main';
+            } finally {
+                currentAppState = AppState.READY;
+                renderUI();
+            }
+        }
+
+        function setupRealtimeListener() {
+            if (unsubscribePosts) unsubscribePosts();
+
+            const postsCollectionRef = collection(db, `artifacts/${appId}/public/data/motivation_posts`);
+            const twentyHoursAgo = new Date(Date.now() - 20 * 60 * 60 * 1000);
+            
+            const q = query(postsCollectionRef, where("updatedAt", ">=", twentyHoursAgo));
+
+            unsubscribePosts = onSnapshot(q, (snapshot) => {
+                const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderPosts(posts);
+            }, (error) => {
+                console.error("Snapshot error:", error);
+            });
+        }
+        
+        let resultsAnimations = [];
+        let resultsAnimationRequest;
+
+        function renderPosts(posts) {
+            stopResultsAnimation();
+            elements.participantsList.innerHTML = '';
+            resultsAnimations = [];
+
+            if (posts.length === 0) {
+                elements.participantsList.innerHTML = '<p class="text-gray-500 text-center p-4">まだ誰も投稿していません👀<br>（過去20時間）</p>';
+                return;
+            }
+            
+            posts.sort((a, b) => (b.motivation || 0) - (a.motivation || 0));
+            
+            posts.forEach(post => {
+                const isMe = post.id === userId;
+                const motivation = post.motivation || 0;
+                const div = document.createElement('div');
+                div.className = `element-bg rounded-2xl p-4 relative overflow-hidden flex items-center justify-between ${isMe ? 'ring-2 ring-amber-500' : ''}`;
+                
+                const liquidBgId = `liquid-bg-${post.id}`;
+                const cardId = `card-${post.id}`;
+                div.id = cardId;
+
+                div.innerHTML = `
+                    <div class="absolute top-0 left-0 w-full h-full z-0">
+                        <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+                            <g class="liquid-container">
+                                <path id="${liquidBgId}" fill="#fbbF24" />
+                                <g class="bubbles-bg-container"></g>
+                            </g>
+                        </svg>
+                    </div>
+                    <div class="relative z-10 flex items-center justify-between w-full">
+                        <div class="flex items-center gap-3 flex-grow min-w-0">
+                            <div class="text-center w-16 flex-shrink-0">
+                                ${generateAvatar(post.name, 'w-16 h-16 text-2xl')}
+                            </div>
+                            <div class="flex flex-col items-start min-w-0">
+                                <p class="text-xl font-bold text-white truncate w-full" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.7);">${post.name}</p>
+                                <p class="text-sm text-gray-300 mt-1" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.7);">${formatTimeAgo(post.updatedAt)}</p>
+                            </div>
+                        </div>
+                        <div class="flex-shrink-0 flex items-baseline justify-end pl-2" style="width: 120px; text-shadow: 2px 2px 8px rgba(0,0,0,0.5);">
+                            <span class="text-6xl font-bold text-white mochiy-pop-one-regular">${motivation}</span>
+                            <span class="text-2xl text-gray-300 font-semibold ml-1">%</span>
+                        </div>
+                    </div>
+                `;
+                elements.participantsList.appendChild(div);
+
+                const bubblesContainer = div.querySelector('.bubbles-bg-container');
+                const liquidPath = div.querySelector(`#${liquidBgId}`);
+                const bubbles = [];
+                const numBubbles = Math.floor(20 * (motivation / 100));
+
+                for(let i = 0; i < numBubbles; i++) {
+                    // FIX: Use ellipse instead of circle
+                    const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+                    bubblesContainer.appendChild(ellipse);
+                    bubbles.push({
+                        el: ellipse,
+                        x: Math.random() * 100,
+                        y: Math.random() * 100 + 100,
+                        r: Math.random() * 1.5 + 1, // Base radius in pixels
+                        speed: Math.random() * 0.3 + 0.1
+                    });
+                }
+                resultsAnimations.push({
+                    id: post.id,
+                    cardId: cardId,
+                    path: liquidPath,
+                    bubbles: bubbles,
+                    motivation: motivation,
+                });
+            });
+            startResultsAnimation();
+        }
+
+        function startResultsAnimation() {
+            let startTime = null;
+            function animate(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const elapsed = timestamp - startTime;
+
+                resultsAnimations.forEach(anim => {
+                    const cardElement = document.getElementById(anim.cardId);
+                    if (!cardElement) return;
+
+                    const motivation = anim.motivation;
+                    const topY = 100 - motivation;
+
+                    if (motivation > 0 && motivation < 100) {
+                        const swayX = Math.sin(elapsed / 2000 + anim.id.charCodeAt(0)) * 2;
+                        const swayY = Math.cos(elapsed / 1500 + anim.id.charCodeAt(0)) * 1.5;
+                        anim.path.setAttribute('d', `M -1 ${topY + swayY} Q 50 ${topY + swayY + swayX}, 101 ${topY + swayY} V 101 H -1 Z`);
+                    } else {
+                        anim.path.setAttribute('d', `M 0 ${topY} H 100 V 100 H 0 Z`);
+                    }
+
+                    const aspect = cardElement.clientWidth / cardElement.clientHeight;
+                    if (!aspect || !isFinite(aspect)) return;
+
+                    anim.bubbles.forEach(b => {
+                        b.y -= b.speed;
+                        if (b.y < topY) {
+                            b.y = 100;
+                            b.x = Math.random() * 100;
+                        }
+                        
+                        // FIX: Calculate rx and ry to make bubbles circular
+                        const rx = b.r / cardElement.clientWidth * 100;
+                        const ry = b.r / cardElement.clientHeight * 100;
+                        
+                        b.el.setAttribute('cx', `${b.x}`);
+                        b.el.setAttribute('cy', `${b.y}`);
+                        b.el.setAttribute('rx', rx);
+                        b.el.setAttribute('ry', ry);
+                        b.el.setAttribute('fill', 'white');
+                        b.el.setAttribute('opacity', '0.7');
+                    });
+                });
+                resultsAnimationRequest = requestAnimationFrame(animate);
+            }
+            resultsAnimationRequest = requestAnimationFrame(animate);
+        }
+
+        function stopResultsAnimation() {
+            if (resultsAnimationRequest) {
+                cancelAnimationFrame(resultsAnimationRequest);
+                resultsAnimationRequest = null;
+            }
+        }
+
+        async function saveProfile() {
+            const name = elements.profileModal.nameInput.value.trim();
+            if (!name || !userId || elements.profileModal.saveBtn.disabled) return;
+            
+            currentAppState = AppState.LOADING;
+            renderUI();
+            elements.profileModal.saveBtn.disabled = true;
+            
+            const newProfile = { name, createdAt: serverTimestamp() };
+            const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
+            
+            try {
+                await setDoc(userDocRef, newProfile);
+                userProfile = newProfile;
+                elements.authStatus.innerHTML = `<p>${userProfile.name} <span class="text-gray-500">(${userId.substring(0,4)})</span></p>`;
+                currentAppState = AppState.READY;
+                currentScreen = 'main';
+            } catch (error) {
+                console.error("Profile save error:", error);
+                elements.profileModal.saveBtn.disabled = false;
+                currentAppState = AppState.NEEDS_PROFILE;
+            }
+            renderUI();
+        }
+        
+        // --- Visualization & Helpers ---
+        let beerState = { liquidTop: 190, foamTop: 190, motivation: 50 };
+
+        function updateBeerVisualization(motivation) {
+            beerState.motivation = motivation;
+            
+            const liquid = elements.beer.liquid;
+            const foam = elements.beer.foam;
+
+            const GLASS_BOTTOM_Y = 185;
+            const MAX_LIQUID_HEIGHT = 165;
+            const FOAM_RATIO = 0.15;
+
+            const liquidHeight = (motivation / 100) * MAX_LIQUID_HEIGHT;
+            const liquidTop = GLASS_BOTTOM_Y - liquidHeight;
+            
+            if (motivation > 0) {
+                const liquidPath = `M 30 ${liquidTop} V 185 C 30 195, 120 195, 120 185 V ${liquidTop} Z`;
+                liquid.setAttribute('d', liquidPath);
+            } else {
+                liquid.setAttribute('d', '');
+            }
+            
+            beerState.liquidTop = liquidTop;
+
+            if (liquidHeight > 0) {
+                let foamPath;
+                if (motivation === 100) {
+                    foamPath = `M 30 ${liquidTop} C 30 ${liquidTop}, 25 ${liquidTop-5}, 25 ${liquidTop-15} 
+                                L 20 ${liquidTop-20} C 15 ${liquidTop-30}, 25 ${liquidTop-35}, 40 ${liquidTop-30}
+                                L 110 ${liquidTop-30} C 125 ${liquidTop-30}, 135 ${liquidTop-20}, 120 ${liquidTop} Z`;
+                } else {
+                    const foamHeight = Math.max(8, liquidHeight * FOAM_RATIO);
+                    foamPath = `M 30,${liquidTop} C 40,${liquidTop-foamHeight}, 60,${liquidTop-foamHeight}, 75,${liquidTop} 
+                                S 100,${liquidTop+5}, 120,${liquidTop} Z`;
+                }
+                foam.setAttribute('d', foamPath);
+            } else {
+                foam.setAttribute('d', '');
+            }
+            updatePercentageDisplay(motivation);
+        }
+        
+        // --- Animation Logic ---
+        const carbonationBubbles = [];
+        const poppingBubbles = [];
+
+        function startAnimations() {
+            for (let i = 0; i < 40; i++) {
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                elements.beer.carbonationBubbles.appendChild(circle);
+                carbonationBubbles.push({
+                    el: circle,
+                    x: 35 + Math.random() * 80,
+                    y: 190,
+                    r: Math.random() * 1.2 + 0.3,
+                    baseSpeed: Math.random() * 0.5 + 0.2
+                });
+            }
+
+            for (let i = 0; i < 15; i++) {
+                 const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                elements.beer.poppingBubbles.appendChild(circle);
+                poppingBubbles.push({
+                    el: circle, x: 0, y: 0, r: 0, lifetime: 999, maxLifetime: 100
+                });
+            }
+
+            function animateBeer() {
+                const motivationRatio = beerState.motivation / 100;
+                const activeBubbles = Math.floor(carbonationBubbles.length * motivationRatio);
+
+                carbonationBubbles.forEach((b, index) => {
+                    if (index < activeBubbles && beerState.motivation > 0) {
+                        const speedMultiplier = 0.5 + motivationRatio * 2.5;
+                        b.y -= b.baseSpeed * speedMultiplier;
+                        if (b.y < beerState.liquidTop) {
+                            b.y = 190;
+                            b.x = 35 + Math.random() * 80;
+                        }
+                        b.el.setAttribute('r', b.r);
+                    } else {
+                        b.el.setAttribute('r', 0);
+                    }
+                    b.el.setAttribute('cx', b.x);
+                    b.el.setAttribute('cy', b.y);
+                    b.el.classList.add('carbonation-bubble');
+                });
+
+                poppingBubbles.forEach(b => {
+                    if (beerState.motivation > 0) {
+                        b.lifetime++;
+                        if (b.lifetime > b.maxLifetime) {
+                            b.lifetime = 0;
+                            b.maxLifetime = 50 + Math.random() * 100;
+                            const foamTopY = beerState.liquidTop - (beerState.motivation === 100 ? 30 : 0);
+                            b.x = 35 + Math.random() * 80;
+                            b.y = foamTopY - 5 - Math.random() * 10;
+                            b.r = Math.random() * 3 + 1;
+                        }
+                        const currentRadius = b.r * (b.lifetime / b.maxLifetime);
+                        b.el.setAttribute('r', currentRadius);
+                    } else {
+                        b.el.setAttribute('r', 0);
+                    }
+                    b.el.setAttribute('cx', b.x);
+                    b.el.setAttribute('cy', b.y);
+                    b.el.classList.add('popping-bubble');
+                });
+
+                requestAnimationFrame(animateBeer);
+            }
+            animateBeer();
+            updateBeerVisualization(parseInt(elements.slider.value));
+        }
+        
+        // --- Percentage Animation ---
+        let percentageTextEl, percentageClipText, percentageBubblesContainer;
+
+        function initPercentageDisplay() {
+            elements.percentageDisplay.innerHTML = `
+                <svg viewBox="0 0 220 80" class="w-full h-full" overflow="visible">
+                    <defs>
+                        <clipPath id="percentage-clip">
+                            <text id="percentage-clip-text" x="110" y="60" text-anchor="middle" class="mochiy-pop-one-regular" font-size="70" fill="white">50%</text>
+                        </clipPath>
+                    </defs>
+                    <text id="percentage-text" x="110" y="60" text-anchor="middle" class="mochiy-pop-one-regular" font-size="70" fill="#4a5568">50%</text>
+                    <g clip-path="url(#percentage-clip)">
+                        <rect x="0" y="0" width="220" height="80" fill="#fbbF24" />
+                        <g id="percentage-bubbles-container"></g>
+                    </g>
+                </svg>
+            `;
+            percentageTextEl = document.getElementById('percentage-text');
+            percentageClipText = document.getElementById('percentage-clip-text');
+            percentageBubblesContainer = document.getElementById('percentage-bubbles-container');
+            
+            const percentageBubbles = [];
+            for (let i = 0; i < 40; i++) {
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                percentageBubblesContainer.appendChild(circle);
+                percentageBubbles.push({
+                    el: circle, x: Math.random() * 220, y: Math.random() * 80,
+                    r: Math.random() * 2 + 1, speed: Math.random() * 0.3 + 0.1
+                });
+            }
+            
+            function animatePercentage() {
+                percentageBubbles.forEach(b => {
+                    b.y -= b.speed;
+                    if (b.y < -b.r) {
+                        b.y = 80 + b.r;
+                        b.x = Math.random() * 220;
+                    }
+                    b.el.setAttribute('cx', b.x);
+                    b.el.setAttribute('cy', b.y);
+                    b.el.setAttribute('r', b.r);
+                    b.el.setAttribute('fill', 'white');
+                    b.el.setAttribute('opacity', '0.7');
+                });
+                requestAnimationFrame(animatePercentage);
+            }
+            animatePercentage();
+        }
+
+        function updatePercentageDisplay(motivation) {
+            const text = `${motivation}%`;
+            if(percentageTextEl) {
+                percentageTextEl.textContent = text;
+                percentageClipText.textContent = text;
+            }
+        }
+        
+        function formatTimeAgo(timestamp) {
+            if (!timestamp || !timestamp.toDate) return '';
+            const now = new Date();
+            const seconds = Math.floor((now - timestamp.toDate()) / 1000);
+            
+            if (seconds < 60) return 'たった今';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}分前`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}時間前`;
+            
+            return `${Math.floor(hours / 24)}日前`;
+        }
+        const generateAvatar = (seed, c='w-24 h-24 text-4xl') => { if(!seed) seed = '?'; const cs=[['#f97316','#f59e0b'],['#84cc16','#a3e635'],['#22d3ee','#67e8f9'],['#8b5cf6','#a78bfa'],['#ec4899','#f472b6']], i=seed.charAt(0).toUpperCase(); let h=0; for(let j=0;j<seed.length;j++)h=seed.charCodeAt(j)+((h<<5)-h); const g=cs[Math.abs(h%cs.length)]; return `<div class="rounded-full ${c} flex items-center justify-center" style="background-image: linear-gradient(to bottom right, ${g[0]}, ${g[1]})"><span class="font-bold text-white">${i}</span></div>`; };
+
+        main();
+    </script>
+</body>
+</html>
