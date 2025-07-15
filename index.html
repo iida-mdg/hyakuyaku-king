@@ -146,7 +146,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc, serverTimestamp, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- App State Management ---
@@ -159,6 +159,21 @@
         let currentScreen = 'main';
 
         // --- Firebase & Global Variables ---
+        // ==================================================================
+        // 【重要】ここに、Firebaseコンソールからコピーしたあなたの設定を貼り付けてください
+        // ==================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyD6-ozAI84UDh0HVGcaXm-vW2XmCUeXPVs",
+            authDomain: "nomibe-app.firebaseapp.com",
+            projectId: "nomibe-app",
+            storageBucket: "nomibe-app.firebasestorage.app",
+            messagingSenderId: "166250150516",
+            appId: "1:166250150516:web:0ca4c4c84477862a4c6f21",
+            measurementId: "G-HX07DR75G2"
+        };
+        // ==================================================================
+
+        const appId = 'jp-drinking-app-complete-v1';
         let db, auth, userId = null, userProfile = null, unsubscribePosts = null;
 
         const elements = {
@@ -206,21 +221,17 @@
         async function main() {
             renderUI();
             try {
-                // FIX: Use environment-provided variables correctly.
-                const firebaseConfig = JSON.parse(window.__firebase_config);
-                const appId = window.__app_id || 'jp-drinking-app-complete-v1';
-                
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
                 setupEventListeners();
                 initPercentageDisplay();
-                await initializeUser(appId);
+                await initializeUser();
                 startAnimations();
             } catch (error) {
                 console.error("Firebase Init Error:", error);
-                alert("アプリの初期化に失敗しました。ページを再読み込みしてください。");
+                alert("アプリの初期化に失敗しました。Firebaseの設定が正しいか確認してください。");
             }
         }
 
@@ -233,11 +244,7 @@
                         resolve(user);
                     } else {
                         try {
-                            // FIX: Use environment-provided token correctly.
-                            const initialAuthToken = window.__initial_auth_token || null;
-                            const userCredential = initialAuthToken 
-                                ? await signInWithCustomToken(auth, initialAuthToken) 
-                                : await signInAnonymously(auth);
+                            const userCredential = await signInAnonymously(auth);
                             resolve(userCredential.user);
                         } catch (e) {
                             reject(e);
@@ -247,7 +254,7 @@
             });
         }
         
-        async function initializeUser(appId) {
+        async function initializeUser() {
             try {
                 const user = await getAuthenticatedUser();
                 userId = user.uid;
@@ -302,7 +309,6 @@
             renderUI();
             
             const motivation = parseInt(elements.slider.value);
-            const appId = window.__app_id || 'jp-drinking-app-complete-v1';
             const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
             
             try {
@@ -312,7 +318,7 @@
                     updatedAt: serverTimestamp()
                 });
                 
-                setupRealtimeListener(appId);
+                setupRealtimeListener();
                 currentScreen = 'results';
             } catch (error) {
                 console.error("Failed to publish motivation:", error);
@@ -323,7 +329,7 @@
             }
         }
 
-        function setupRealtimeListener(appId) {
+        function setupRealtimeListener() {
             if (unsubscribePosts) unsubscribePosts();
 
             const postsCollectionRef = collection(db, `artifacts/${appId}/public/data/motivation_posts`);
@@ -481,7 +487,6 @@
             elements.profileModal.saveBtn.disabled = true;
             
             const newProfile = { name, createdAt: serverTimestamp() };
-            const appId = window.__app_id || 'jp-drinking-app-complete-v1';
             const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
             
             try {
