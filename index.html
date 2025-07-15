@@ -96,9 +96,6 @@
                         </g>
                         <path id="beer-foam" d="" fill="#ffffff"/>
                         <g id="popping-bubbles"></g>
-                        <!-- 0% Message -->
-                        <text id="zero-percent-message" x="75" y="110" text-anchor="middle" font-size="16" fill="white" opacity="0.7" class="mochiy-pop-one-regular hidden" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.5);"></text>
-
                         <path d="M 20 5 C 20 20, 130 20, 130 5 L 125 190 C 125 200, 25 200, 25 190 Z" fill="transparent" stroke="#e2e8f0" stroke-width="0.5" opacity="0.3" />
                         <path d="M 125 50 C 150 60, 150 130, 125 140 L 122 135 C 140 125, 140 65, 122 55 Z" fill="#e2e8f0" opacity="0.2"/>
                         <path d="M 40 30 C 45 80, 45 150, 40 180" fill="none" stroke="url(#glass-shine)" stroke-width="5" stroke-linecap="round" />
@@ -162,7 +159,9 @@
         let currentScreen = 'main';
 
         // --- Firebase & Global Variables ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'jp-drinking-app-complete-v1';
+        // FIX: Hardcode Firebase config and App ID for simplicity and reliability
+        const firebaseConfig = {"apiKey":"AIza...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"...","measurementId":"..."};
+        const appId = 'jp-drinking-app-complete-v1';
         let db, auth, userId = null, userProfile = null, unsubscribePosts = null;
 
         const elements = {
@@ -179,7 +178,6 @@
                 foam: document.getElementById('beer-foam'),
                 carbonationBubbles: document.getElementById('carbonation-bubbles'),
                 poppingBubbles: document.getElementById('popping-bubbles'),
-                zeroMessage: document.getElementById('zero-percent-message'),
             },
             publishBtn: document.getElementById('publish-motivation-btn'),
             backBtn: document.getElementById('back-to-main-btn'),
@@ -211,18 +209,17 @@
         async function main() {
             renderUI();
             try {
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                
                 setupEventListeners();
                 initPercentageDisplay();
                 await initializeUser();
                 startAnimations();
             } catch (error) {
                 console.error("Firebase Init Error:", error);
-                currentAppState = AppState.READY;
-                renderUI();
+                alert("アプリの初期化に失敗しました。ページを再読み込みしてください。");
             }
         }
 
@@ -235,10 +232,7 @@
                         resolve(user);
                     } else {
                         try {
-                            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                            const userCredential = initialAuthToken 
-                                ? await signInWithCustomToken(auth, initialAuthToken) 
-                                : await signInAnonymously(auth);
+                            const userCredential = await signInAnonymously(auth);
                             resolve(userCredential.user);
                         } catch (e) {
                             reject(e);
@@ -499,15 +493,12 @@
         
         // --- Visualization & Helpers ---
         let beerState = { liquidTop: 190, foamTop: 190, motivation: 50 };
-        const zeroPctMessages = ["残念。", "悲しい。", "ほなまた。", "え…", "嘘...だよな...?"];
-        let currentZeroMsg = "";
 
         function updateBeerVisualization(motivation) {
             beerState.motivation = motivation;
             
             const liquid = elements.beer.liquid;
             const foam = elements.beer.foam;
-            const zeroMsgEl = elements.beer.zeroMessage;
 
             const GLASS_BOTTOM_Y = 185;
             const MAX_LIQUID_HEIGHT = 165;
@@ -519,20 +510,13 @@
             if (motivation > 0) {
                 const liquidPath = `M 30 ${liquidTop} V 185 C 30 195, 120 195, 120 185 V ${liquidTop} Z`;
                 liquid.setAttribute('d', liquidPath);
-                zeroMsgEl.classList.add('hidden');
             } else {
                 liquid.setAttribute('d', '');
-                if (!currentZeroMsg) {
-                    currentZeroMsg = zeroPctMessages[Math.floor(Math.random() * zeroPctMessages.length)];
-                }
-                zeroMsgEl.textContent = currentZeroMsg;
-                zeroMsgEl.classList.remove('hidden');
             }
             
             beerState.liquidTop = liquidTop;
 
             if (liquidHeight > 0) {
-                currentZeroMsg = ""; // Reset message when not 0
                 let foamPath;
                 if (motivation === 100) {
                     foamPath = `M 30 ${liquidTop} C 30 ${liquidTop}, 25 ${liquidTop-5}, 25 ${liquidTop-15} 
