@@ -146,7 +146,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc, serverTimestamp, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- App State Management ---
@@ -159,9 +159,6 @@
         let currentScreen = 'main';
 
         // --- Firebase & Global Variables ---
-        // FIX: Hardcode Firebase config and App ID for simplicity and reliability
-        const firebaseConfig = {"apiKey":"AIza...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"...","measurementId":"..."};
-        const appId = 'jp-drinking-app-complete-v1';
         let db, auth, userId = null, userProfile = null, unsubscribePosts = null;
 
         const elements = {
@@ -209,13 +206,17 @@
         async function main() {
             renderUI();
             try {
+                // FIX: Use environment-provided variables correctly.
+                const firebaseConfig = JSON.parse(window.__firebase_config);
+                const appId = window.__app_id || 'jp-drinking-app-complete-v1';
+                
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
                 setupEventListeners();
                 initPercentageDisplay();
-                await initializeUser();
+                await initializeUser(appId);
                 startAnimations();
             } catch (error) {
                 console.error("Firebase Init Error:", error);
@@ -232,7 +233,11 @@
                         resolve(user);
                     } else {
                         try {
-                            const userCredential = await signInAnonymously(auth);
+                            // FIX: Use environment-provided token correctly.
+                            const initialAuthToken = window.__initial_auth_token || null;
+                            const userCredential = initialAuthToken 
+                                ? await signInWithCustomToken(auth, initialAuthToken) 
+                                : await signInAnonymously(auth);
                             resolve(userCredential.user);
                         } catch (e) {
                             reject(e);
@@ -242,7 +247,7 @@
             });
         }
         
-        async function initializeUser() {
+        async function initializeUser(appId) {
             try {
                 const user = await getAuthenticatedUser();
                 userId = user.uid;
@@ -297,6 +302,7 @@
             renderUI();
             
             const motivation = parseInt(elements.slider.value);
+            const appId = window.__app_id || 'jp-drinking-app-complete-v1';
             const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
             
             try {
@@ -306,7 +312,7 @@
                     updatedAt: serverTimestamp()
                 });
                 
-                setupRealtimeListener();
+                setupRealtimeListener(appId);
                 currentScreen = 'results';
             } catch (error) {
                 console.error("Failed to publish motivation:", error);
@@ -317,7 +323,7 @@
             }
         }
 
-        function setupRealtimeListener() {
+        function setupRealtimeListener(appId) {
             if (unsubscribePosts) unsubscribePosts();
 
             const postsCollectionRef = collection(db, `artifacts/${appId}/public/data/motivation_posts`);
@@ -475,6 +481,7 @@
             elements.profileModal.saveBtn.disabled = true;
             
             const newProfile = { name, createdAt: serverTimestamp() };
+            const appId = window.__app_id || 'jp-drinking-app-complete-v1';
             const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
             
             try {
