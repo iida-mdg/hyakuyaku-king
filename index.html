@@ -96,6 +96,9 @@
                         </g>
                         <path id="beer-foam" d="" fill="#ffffff"/>
                         <g id="popping-bubbles"></g>
+                        <!-- 0% Message -->
+                        <text id="zero-percent-message" x="75" y="110" text-anchor="middle" font-size="16" fill="white" opacity="0.7" class="mochiy-pop-one-regular hidden" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.5);"></text>
+
                         <path d="M 20 5 C 20 20, 130 20, 130 5 L 125 190 C 125 200, 25 200, 25 190 Z" fill="transparent" stroke="#e2e8f0" stroke-width="0.5" opacity="0.3" />
                         <path d="M 125 50 C 150 60, 150 130, 125 140 L 122 135 C 140 125, 140 65, 122 55 Z" fill="#e2e8f0" opacity="0.2"/>
                         <path d="M 40 30 C 45 80, 45 150, 40 180" fill="none" stroke="url(#glass-shine)" stroke-width="5" stroke-linecap="round" />
@@ -142,13 +145,6 @@
         <div id="loading-overlay" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 transition-opacity duration-300">
              <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-amber-500"></div>
         </div>
-        
-        <!-- Config Error Screen -->
-        <div id="config-error-screen" class="app-screen p-8 flex-col items-center justify-center text-center">
-            <h1 class="text-2xl font-bold text-red-500 mb-4">設定エラー</h1>
-            <p class="text-gray-300">Firebaseの接続設定が見つかりません。</p>
-            <p class="text-gray-400 mt-2 text-sm">このアプリをWebサイトで動作させるには、ホスティングサービス（Netlifyなど）にFirebaseの設定情報を「環境変数」として追加する必要があります。</p>
-        </div>
     </div>
 
     <script type="module">
@@ -160,20 +156,19 @@
         const AppState = {
             LOADING: 'loading',
             NEEDS_PROFILE: 'needs_profile',
-            CONFIG_ERROR: 'config_error',
             READY: 'ready',
         };
         let currentAppState = AppState.LOADING;
         let currentScreen = 'main';
 
         // --- Firebase & Global Variables ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'jp-drinking-app-complete-v1';
         let db, auth, userId = null, userProfile = null, unsubscribePosts = null;
 
         const elements = {
             screens: {
                 main: document.getElementById('main-screen'),
                 results: document.getElementById('results-screen'),
-                configError: document.getElementById('config-error-screen'),
             },
             loadingOverlay: document.getElementById('loading-overlay'),
             authStatus: document.getElementById('auth-status'),
@@ -184,6 +179,7 @@
                 foam: document.getElementById('beer-foam'),
                 carbonationBubbles: document.getElementById('carbonation-bubbles'),
                 poppingBubbles: document.getElementById('popping-bubbles'),
+                zeroMessage: document.getElementById('zero-percent-message'),
             },
             publishBtn: document.getElementById('publish-motivation-btn'),
             backBtn: document.getElementById('back-to-main-btn'),
@@ -200,7 +196,6 @@
         function renderUI() {
             elements.loadingOverlay.classList.toggle('hidden', currentAppState !== AppState.LOADING);
             elements.profileModal.container.classList.toggle('is-open', currentAppState === AppState.NEEDS_PROFILE);
-            elements.screens.configError.classList.toggle('is-active', currentAppState === AppState.CONFIG_ERROR);
 
             if (currentAppState === AppState.READY) {
                 Object.values(elements.screens).forEach(s => s.classList.remove('is-active'));
@@ -208,9 +203,7 @@
                     elements.screens[currentScreen].classList.add('is-active');
                 }
             } else {
-                 if(currentAppState !== AppState.CONFIG_ERROR) {
-                    Object.values(elements.screens).forEach(s => s.classList.remove('is-active'));
-                 }
+                Object.values(elements.screens).forEach(s => s.classList.remove('is-active'));
             }
         }
 
@@ -218,32 +211,17 @@
         async function main() {
             renderUI();
             try {
-                // FIX: Check for Netlify-compatible OR Canvas-provided variables
-                let firebaseConfigJson = null;
-                if (typeof FIREBASE_CONFIG_JSON !== 'undefined') {
-                    firebaseConfigJson = FIREBASE_CONFIG_JSON;
-                } else if (typeof __firebase_config !== 'undefined') {
-                    firebaseConfigJson = __firebase_config;
-                }
-
-                if (!firebaseConfigJson || !JSON.parse(firebaseConfigJson).apiKey) {
-                    currentAppState = AppState.CONFIG_ERROR;
-                    renderUI();
-                    return;
-                }
-                const firebaseConfig = JSON.parse(firebaseConfigJson);
-                
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                
                 setupEventListeners();
                 initPercentageDisplay();
                 await initializeUser();
                 startAnimations();
             } catch (error) {
                 console.error("Firebase Init Error:", error);
-                currentAppState = AppState.CONFIG_ERROR;
+                currentAppState = AppState.READY;
                 renderUI();
             }
         }
@@ -257,14 +235,7 @@
                         resolve(user);
                     } else {
                         try {
-                            // FIX: Check for Netlify-compatible OR Canvas-provided variables
-                            let initialAuthToken = null;
-                            if (typeof INITIAL_AUTH_TOKEN !== 'undefined') {
-                                initialAuthToken = INITIAL_AUTH_TOKEN;
-                            } else if (typeof __initial_auth_token !== 'undefined') {
-                                initialAuthToken = __initial_auth_token;
-                            }
-                            
+                            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
                             const userCredential = initialAuthToken 
                                 ? await signInWithCustomToken(auth, initialAuthToken) 
                                 : await signInAnonymously(auth);
@@ -281,14 +252,6 @@
             try {
                 const user = await getAuthenticatedUser();
                 userId = user.uid;
-
-                let appId = 'default-app-id';
-                if (typeof APP_ID !== 'undefined') {
-                    appId = APP_ID;
-                } else if (typeof __app_id !== 'undefined') {
-                    appId = __app_id;
-                }
-
                 const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
                 const userDoc = await getDoc(userDocRef);
                 
@@ -340,7 +303,6 @@
             renderUI();
             
             const motivation = parseInt(elements.slider.value);
-            const appId = typeof APP_ID !== 'undefined' ? APP_ID : (typeof __app_id !== 'undefined' ? __app_id : 'default-app-id');
             const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
             
             try {
@@ -350,7 +312,7 @@
                     updatedAt: serverTimestamp()
                 });
                 
-                setupRealtimeListener(appId);
+                setupRealtimeListener();
                 currentScreen = 'results';
             } catch (error) {
                 console.error("Failed to publish motivation:", error);
@@ -361,7 +323,7 @@
             }
         }
 
-        function setupRealtimeListener(appId) {
+        function setupRealtimeListener() {
             if (unsubscribePosts) unsubscribePosts();
 
             const postsCollectionRef = collection(db, `artifacts/${appId}/public/data/motivation_posts`);
@@ -519,7 +481,6 @@
             elements.profileModal.saveBtn.disabled = true;
             
             const newProfile = { name, createdAt: serverTimestamp() };
-            const appId = typeof APP_ID !== 'undefined' ? APP_ID : (typeof __app_id !== 'undefined' ? __app_id : 'default-app-id');
             const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
             
             try {
@@ -538,12 +499,15 @@
         
         // --- Visualization & Helpers ---
         let beerState = { liquidTop: 190, foamTop: 190, motivation: 50 };
+        const zeroPctMessages = ["残念。", "悲しい。", "ほなまた。", "え…", "嘘...だよな...?"];
+        let currentZeroMsg = "";
 
         function updateBeerVisualization(motivation) {
             beerState.motivation = motivation;
             
             const liquid = elements.beer.liquid;
             const foam = elements.beer.foam;
+            const zeroMsgEl = elements.beer.zeroMessage;
 
             const GLASS_BOTTOM_Y = 185;
             const MAX_LIQUID_HEIGHT = 165;
@@ -555,13 +519,20 @@
             if (motivation > 0) {
                 const liquidPath = `M 30 ${liquidTop} V 185 C 30 195, 120 195, 120 185 V ${liquidTop} Z`;
                 liquid.setAttribute('d', liquidPath);
+                zeroMsgEl.classList.add('hidden');
             } else {
                 liquid.setAttribute('d', '');
+                if (!currentZeroMsg) {
+                    currentZeroMsg = zeroPctMessages[Math.floor(Math.random() * zeroPctMessages.length)];
+                }
+                zeroMsgEl.textContent = currentZeroMsg;
+                zeroMsgEl.classList.remove('hidden');
             }
             
             beerState.liquidTop = liquidTop;
 
             if (liquidHeight > 0) {
+                currentZeroMsg = ""; // Reset message when not 0
                 let foamPath;
                 if (motivation === 100) {
                     foamPath = `M 30 ${liquidTop} C 30 ${liquidTop}, 25 ${liquidTop-5}, 25 ${liquidTop-15} 
