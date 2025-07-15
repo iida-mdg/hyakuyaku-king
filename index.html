@@ -142,6 +142,13 @@
         <div id="loading-overlay" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 transition-opacity duration-300">
              <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-amber-500"></div>
         </div>
+        
+        <!-- Config Error Screen -->
+        <div id="config-error-screen" class="app-screen p-8 flex-col items-center justify-center text-center">
+            <h1 class="text-2xl font-bold text-red-500 mb-4">設定エラー</h1>
+            <p class="text-gray-300">Firebaseの接続設定が見つかりません。</p>
+            <p class="text-gray-400 mt-2 text-sm">このアプリをWebサイトで動作させるには、ホスティングサービス（Netlifyなど）にFirebaseの設定情報を「環境変数」として追加する必要があります。</p>
+        </div>
     </div>
 
     <script type="module">
@@ -153,19 +160,20 @@
         const AppState = {
             LOADING: 'loading',
             NEEDS_PROFILE: 'needs_profile',
+            CONFIG_ERROR: 'config_error',
             READY: 'ready',
         };
         let currentAppState = AppState.LOADING;
         let currentScreen = 'main';
 
         // --- Firebase & Global Variables ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'jp-drinking-app-complete-v1';
         let db, auth, userId = null, userProfile = null, unsubscribePosts = null;
 
         const elements = {
             screens: {
                 main: document.getElementById('main-screen'),
                 results: document.getElementById('results-screen'),
+                configError: document.getElementById('config-error-screen'),
             },
             loadingOverlay: document.getElementById('loading-overlay'),
             authStatus: document.getElementById('auth-status'),
@@ -192,6 +200,7 @@
         function renderUI() {
             elements.loadingOverlay.classList.toggle('hidden', currentAppState !== AppState.LOADING);
             elements.profileModal.container.classList.toggle('is-open', currentAppState === AppState.NEEDS_PROFILE);
+            elements.screens.configError.classList.toggle('is-active', currentAppState === AppState.CONFIG_ERROR);
 
             if (currentAppState === AppState.READY) {
                 Object.values(elements.screens).forEach(s => s.classList.remove('is-active'));
@@ -199,7 +208,9 @@
                     elements.screens[currentScreen].classList.add('is-active');
                 }
             } else {
-                Object.values(elements.screens).forEach(s => s.classList.remove('is-active'));
+                 if(currentAppState !== AppState.CONFIG_ERROR) {
+                    Object.values(elements.screens).forEach(s => s.classList.remove('is-active'));
+                 }
             }
         }
 
@@ -207,17 +218,25 @@
         async function main() {
             renderUI();
             try {
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+                if (typeof __firebase_config === 'undefined' || !JSON.parse(__firebase_config).apiKey) {
+                    currentAppState = AppState.CONFIG_ERROR;
+                    renderUI();
+                    return;
+                }
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                
                 setupEventListeners();
                 initPercentageDisplay();
-                await initializeUser();
+                await initializeUser(appId);
                 startAnimations();
             } catch (error) {
                 console.error("Firebase Init Error:", error);
-                currentAppState = AppState.READY;
+                currentAppState = AppState.CONFIG_ERROR;
                 renderUI();
             }
         }
@@ -244,7 +263,7 @@
             });
         }
         
-        async function initializeUser() {
+        async function initializeUser(appId) {
             try {
                 const user = await getAuthenticatedUser();
                 userId = user.uid;
@@ -299,6 +318,7 @@
             renderUI();
             
             const motivation = parseInt(elements.slider.value);
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
             
             try {
@@ -308,7 +328,7 @@
                     updatedAt: serverTimestamp()
                 });
                 
-                setupRealtimeListener();
+                setupRealtimeListener(appId);
                 currentScreen = 'results';
             } catch (error) {
                 console.error("Failed to publish motivation:", error);
@@ -319,7 +339,7 @@
             }
         }
 
-        function setupRealtimeListener() {
+        function setupRealtimeListener(appId) {
             if (unsubscribePosts) unsubscribePosts();
 
             const postsCollectionRef = collection(db, `artifacts/${appId}/public/data/motivation_posts`);
@@ -393,14 +413,13 @@
                 const numBubbles = Math.floor(20 * (motivation / 100));
 
                 for(let i = 0; i < numBubbles; i++) {
-                    // FIX: Use ellipse instead of circle
                     const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
                     bubblesContainer.appendChild(ellipse);
                     bubbles.push({
                         el: ellipse,
                         x: Math.random() * 100,
                         y: Math.random() * 100 + 100,
-                        r: Math.random() * 1.5 + 1, // Base radius in pixels
+                        r: Math.random() * 1.5 + 1,
                         speed: Math.random() * 0.3 + 0.1
                     });
                 }
@@ -446,9 +465,8 @@
                             b.x = Math.random() * 100;
                         }
                         
-                        // FIX: Calculate rx and ry to make bubbles circular
-                        const rx = b.r / cardElement.clientWidth * 100;
-                        const ry = b.r / cardElement.clientHeight * 100;
+                        const rx = b.r;
+                        const ry = b.r * aspect;
                         
                         b.el.setAttribute('cx', `${b.x}`);
                         b.el.setAttribute('cy', `${b.y}`);
@@ -479,6 +497,7 @@
             elements.profileModal.saveBtn.disabled = true;
             
             const newProfile = { name, createdAt: serverTimestamp() };
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
             
             try {
