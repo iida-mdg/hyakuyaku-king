@@ -218,21 +218,28 @@
         async function main() {
             renderUI();
             try {
-                if (typeof __firebase_config === 'undefined' || !JSON.parse(__firebase_config).apiKey) {
+                // FIX: Check for Netlify-compatible OR Canvas-provided variables
+                let firebaseConfigJson = null;
+                if (typeof FIREBASE_CONFIG_JSON !== 'undefined') {
+                    firebaseConfigJson = FIREBASE_CONFIG_JSON;
+                } else if (typeof __firebase_config !== 'undefined') {
+                    firebaseConfigJson = __firebase_config;
+                }
+
+                if (!firebaseConfigJson || !JSON.parse(firebaseConfigJson).apiKey) {
                     currentAppState = AppState.CONFIG_ERROR;
                     renderUI();
                     return;
                 }
-                const firebaseConfig = JSON.parse(__firebase_config);
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
+                const firebaseConfig = JSON.parse(firebaseConfigJson);
+                
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
                 setupEventListeners();
                 initPercentageDisplay();
-                await initializeUser(appId);
+                await initializeUser();
                 startAnimations();
             } catch (error) {
                 console.error("Firebase Init Error:", error);
@@ -250,7 +257,14 @@
                         resolve(user);
                     } else {
                         try {
-                            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                            // FIX: Check for Netlify-compatible OR Canvas-provided variables
+                            let initialAuthToken = null;
+                            if (typeof INITIAL_AUTH_TOKEN !== 'undefined') {
+                                initialAuthToken = INITIAL_AUTH_TOKEN;
+                            } else if (typeof __initial_auth_token !== 'undefined') {
+                                initialAuthToken = __initial_auth_token;
+                            }
+                            
                             const userCredential = initialAuthToken 
                                 ? await signInWithCustomToken(auth, initialAuthToken) 
                                 : await signInAnonymously(auth);
@@ -263,10 +277,18 @@
             });
         }
         
-        async function initializeUser(appId) {
+        async function initializeUser() {
             try {
                 const user = await getAuthenticatedUser();
                 userId = user.uid;
+
+                let appId = 'default-app-id';
+                if (typeof APP_ID !== 'undefined') {
+                    appId = APP_ID;
+                } else if (typeof __app_id !== 'undefined') {
+                    appId = __app_id;
+                }
+
                 const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
                 const userDoc = await getDoc(userDocRef);
                 
@@ -318,7 +340,7 @@
             renderUI();
             
             const motivation = parseInt(elements.slider.value);
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const appId = typeof APP_ID !== 'undefined' ? APP_ID : (typeof __app_id !== 'undefined' ? __app_id : 'default-app-id');
             const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
             
             try {
@@ -497,7 +519,7 @@
             elements.profileModal.saveBtn.disabled = true;
             
             const newProfile = { name, createdAt: serverTimestamp() };
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const appId = typeof APP_ID !== 'undefined' ? APP_ID : (typeof __app_id !== 'undefined' ? __app_id : 'default-app-id');
             const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
             
             try {
