@@ -80,7 +80,7 @@
                 <div id="beer-container" class="w-64 h-80 mx-auto my-8 mt-4">
                     <svg id="beer-svg" viewBox="0 0 150 200" class="w-full h-full" overflow="visible">
                         <defs>
-                             <clipPath id="glass-clip">
+                            <clipPath id="glass-clip">
                                 <path d="M 30 20 V 185 C 30 195, 120 195, 120 185 V 20 Z" />
                             </clipPath>
                             <linearGradient id="glass-shine" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -154,26 +154,26 @@
             LOADING: 'loading',
             NEEDS_PROFILE: 'needs_profile',
             READY: 'ready',
+            ERROR: 'error'
         };
         let currentAppState = AppState.LOADING;
         let currentScreen = 'main';
 
         // --- Firebase & Global Variables ---
-        // ==================================================================
-        // 【重要】ここに、Firebaseコンソールからコピーしたあなたの設定を貼り付けてください
-        // ==================================================================
+        
+        // Your web app's Firebase configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyD6-ozAI84UDh0HVGcaXm-vW2XmCUeXPVs",
-            authDomain: "nomibe-app.firebaseapp.com",
-            projectId: "nomibe-app",
-            storageBucket: "nomibe-app.firebasestorage.app",
-            messagingSenderId: "166250150516",
-            appId: "1:166250150516:web:0ca4c4c84477862a4c6f21",
-            measurementId: "G-HX07DR75G2"
+            apiKey: "AIzaSyAP7CCx3ZoaQMkRDVxwHx7UEdLfm2D5P3w",
+            authDomain: "nomibe-app-51fd8.firebaseapp.com",
+            projectId: "nomibe-app-51fd8",
+            storageBucket: "nomibe-app-51fd8.appspot.com",
+            messagingSenderId: "109791522849",
+            appId: "1:109791522849:web:f195e9377d6dc485ae7360"
         };
-        // ==================================================================
-
-        const appId = 'jp-drinking-app-complete-v1';
+        
+        // アプリごとにユニークなIDを設定します。複数アプリで使う場合は変更してください。
+        const appId = 'default-nomibe-app-v2';
+        
         let db, auth, userId = null, userProfile = null, unsubscribePosts = null;
 
         const elements = {
@@ -215,64 +215,61 @@
             } else {
                 Object.values(elements.screens).forEach(s => s.classList.remove('is-active'));
             }
+            
+            if (currentAppState === AppState.ERROR) {
+                elements.authStatus.textContent = 'エラーが発生しました。再読み込みしてください。';
+            }
         }
 
         // --- App Initialization ---
         async function main() {
             renderUI();
             try {
+                if (!firebaseConfig.apiKey) {
+                    throw new Error("Firebase config is missing. firebaseConfigに変数を設定してください。");
+                }
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
                 setupEventListeners();
                 initPercentageDisplay();
-                await initializeUser();
+                setupAuthListener();
                 startAnimations();
             } catch (error) {
-                console.error("Firebase Init Error:", error);
-                alert("アプリの初期化に失敗しました。Firebaseの設定が正しいか確認してください。");
+                console.error("Initialization Error:", error);
+                currentAppState = AppState.ERROR;
+                renderUI();
             }
         }
 
         // --- Authentication Flow ---
-        function getAuthenticatedUser() {
-            return new Promise((resolve, reject) => {
-                const unsubscribe = onAuthStateChanged(auth, async (user) => {
-                    unsubscribe();
-                    if (user) {
-                        resolve(user);
+        function setupAuthListener() {
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    // User is signed in.
+                    userId = user.uid;
+                    const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
+                    const userDoc = await getDoc(userDocRef);
+                    
+                    if (userDoc.exists()) {
+                        userProfile = userDoc.data();
+                        elements.authStatus.innerHTML = `<p>${userProfile.name} <span class="text-gray-500">(${userId.substring(0,4)})</span></p>`;
+                        currentAppState = AppState.READY;
                     } else {
-                        try {
-                            const userCredential = await signInAnonymously(auth);
-                            resolve(userCredential.user);
-                        } catch (e) {
-                            reject(e);
-                        }
+                        currentAppState = AppState.NEEDS_PROFILE;
                     }
-                }, reject);
-            });
-        }
-        
-        async function initializeUser() {
-            try {
-                const user = await getAuthenticatedUser();
-                userId = user.uid;
-                const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
-                const userDoc = await getDoc(userDocRef);
-                
-                if (userDoc.exists()) {
-                    userProfile = userDoc.data();
-                    elements.authStatus.innerHTML = `<p>${userProfile.name} <span class="text-gray-500">(${userId.substring(0,4)})</span></p>`;
-                    currentAppState = AppState.READY;
                 } else {
-                    currentAppState = AppState.NEEDS_PROFILE;
+                    // User is signed out. Attempt to sign in anonymously.
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (e) {
+                        console.error("Sign-in failed:", e);
+                        currentAppState = AppState.ERROR;
+                    }
                 }
-            } catch (error) {
-                console.error("User initialization failed:", error);
-                currentAppState = AppState.READY;
-            }
-            renderUI();
+                renderUI();
+            });
         }
 
         // --- Event Listeners ---
@@ -284,6 +281,13 @@
                     unsubscribePosts = null;
                 }
                 stopResultsAnimation();
+                
+                // Disconnect the observer on back
+                if (observer) {
+                    observer.disconnect();
+                    observer = null;
+                }
+
                 currentScreen = 'main';
                 renderUI();
             });
@@ -302,6 +306,31 @@
         }
 
         // --- Core Logic ---
+
+        // Intersection Observer for performance
+        let observer = null;
+
+        function setupIntersectionObserver() {
+            if (observer) {
+                observer.disconnect();
+            }
+
+            const options = {
+                root: elements.participantsList,
+                rootMargin: '100px 0px 100px 0px', // Pre-load/unload animations
+                threshold: 0.01
+            };
+
+            observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const anim = resultsAnimations.find(a => a.cardId === entry.target.id);
+                    if (anim) {
+                        anim.isActive = entry.isIntersecting;
+                    }
+                });
+            }, options);
+        }
+
         async function publishAndShowResults() {
             if (currentAppState !== AppState.READY) return;
             
@@ -315,11 +344,14 @@
                 await setDoc(postDocRef, {
                     motivation: motivation,
                     name: userProfile.name,
+                    avatarSeed: userProfile.name,
                     updatedAt: serverTimestamp()
                 });
                 
+                setupIntersectionObserver();
                 setupRealtimeListener();
                 currentScreen = 'results';
+
             } catch (error) {
                 console.error("Failed to publish motivation:", error);
                 currentScreen = 'main';
@@ -350,6 +382,9 @@
 
         function renderPosts(posts) {
             stopResultsAnimation();
+            
+            const currentlyVisible = new Set(resultsAnimations.filter(a => a.isActive).map(a => a.cardId));
+            
             elements.participantsList.innerHTML = '';
             resultsAnimations = [];
 
@@ -382,7 +417,7 @@
                     <div class="relative z-10 flex items-center justify-between w-full">
                         <div class="flex items-center gap-3 flex-grow min-w-0">
                             <div class="text-center w-16 flex-shrink-0">
-                                ${generateAvatar(post.name, 'w-16 h-16 text-2xl')}
+                                ${generateAvatar(post.avatarSeed || post.name, 'w-16 h-16 text-2xl')}
                             </div>
                             <div class="flex flex-col items-start min-w-0">
                                 <p class="text-xl font-bold text-white truncate w-full" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.7);">${post.name}</p>
@@ -400,17 +435,19 @@
                 const bubblesContainer = div.querySelector('.bubbles-bg-container');
                 const liquidPath = div.querySelector(`#${liquidBgId}`);
                 const bubbles = [];
-                const numBubbles = Math.floor(20 * (motivation / 100));
+                const numBubbles = Math.floor(5 + 60 * (motivation / 100));
 
                 for(let i = 0; i < numBubbles; i++) {
                     const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+                    ellipse.setAttribute('fill', 'white');
+                    ellipse.setAttribute('opacity', '0.7');
                     bubblesContainer.appendChild(ellipse);
                     bubbles.push({
                         el: ellipse,
                         x: Math.random() * 100,
-                        y: Math.random() * 100 + 100,
-                        r: Math.random() * 1.5 + 1,
-                        speed: Math.random() * 0.3 + 0.1
+                        y: Math.random() * 100 + 105,
+                        r: Math.random() * 1.5 + 0.5,
+                        speed: (0.05 + Math.random() * 0.1) * (1 + motivation / 100 * 2)
                     });
                 }
                 resultsAnimations.push({
@@ -419,7 +456,13 @@
                     path: liquidPath,
                     bubbles: bubbles,
                     motivation: motivation,
+                    isActive: currentlyVisible.has(cardId), // Keep it active if it was already visible
                 });
+
+                // Start observing the card
+                if (observer) {
+                    observer.observe(div);
+                }
             });
             startResultsAnimation();
         }
@@ -431,18 +474,25 @@
                 const elapsed = timestamp - startTime;
 
                 resultsAnimations.forEach(anim => {
+                    // Only animate if the card is active (visible)
+                    if (!anim.isActive) {
+                        return;
+                    }
+
                     const cardElement = document.getElementById(anim.cardId);
                     if (!cardElement) return;
 
                     const motivation = anim.motivation;
                     const topY = 100 - motivation;
 
-                    if (motivation > 0 && motivation < 100) {
-                        const swayX = Math.sin(elapsed / 2000 + anim.id.charCodeAt(0)) * 2;
-                        const swayY = Math.cos(elapsed / 1500 + anim.id.charCodeAt(0)) * 1.5;
-                        anim.path.setAttribute('d', `M -1 ${topY + swayY} Q 50 ${topY + swayY + swayX}, 101 ${topY + swayY} V 101 H -1 Z`);
+                    const swayX = Math.sin(elapsed / 2500 + anim.id.charCodeAt(0)) * 8; 
+                    const swayY = Math.cos(elapsed / 2000 + anim.id.charCodeAt(1)) * 5;
+                    const controlPointX = 50 + Math.sin(elapsed / 2200 + anim.id.charCodeAt(2)) * 10;
+                    
+                    if (motivation > 0) {
+                         anim.path.setAttribute('d', `M -10 ${topY + swayY} Q ${controlPointX} ${topY + swayY + swayX}, 110 ${topY + swayY} V 110 H -10 Z`);
                     } else {
-                        anim.path.setAttribute('d', `M 0 ${topY} H 100 V 100 H 0 Z`);
+                        anim.path.setAttribute('d', '');
                     }
 
                     const aspect = cardElement.clientWidth / cardElement.clientHeight;
@@ -450,8 +500,8 @@
 
                     anim.bubbles.forEach(b => {
                         b.y -= b.speed;
-                        if (b.y < topY) {
-                            b.y = 100;
+                        if (b.y < topY - b.r) {
+                            b.y = 105;
                             b.x = Math.random() * 100;
                         }
                         
@@ -462,8 +512,6 @@
                         b.el.setAttribute('cy', `${b.y}`);
                         b.el.setAttribute('rx', rx);
                         b.el.setAttribute('ry', ry);
-                        b.el.setAttribute('fill', 'white');
-                        b.el.setAttribute('opacity', '0.7');
                     });
                 });
                 resultsAnimationRequest = requestAnimationFrame(animate);
@@ -505,6 +553,7 @@
         
         // --- Visualization & Helpers ---
         let beerState = { liquidTop: 190, foamTop: 190, motivation: 50 };
+        let foamAnimationId = null; 
 
         function updateBeerVisualization(motivation) {
             beerState.motivation = motivation;
@@ -514,8 +563,7 @@
 
             const GLASS_BOTTOM_Y = 185;
             const MAX_LIQUID_HEIGHT = 165;
-            const FOAM_RATIO = 0.15;
-
+            
             const liquidHeight = (motivation / 100) * MAX_LIQUID_HEIGHT;
             const liquidTop = GLASS_BOTTOM_Y - liquidHeight;
             
@@ -528,22 +576,51 @@
             
             beerState.liquidTop = liquidTop;
 
+            if (foamAnimationId) {
+                cancelAnimationFrame(foamAnimationId);
+                foamAnimationId = null;
+            }
+
             if (liquidHeight > 0) {
-                let foamPath;
                 if (motivation === 100) {
-                    foamPath = `M 30 ${liquidTop} C 30 ${liquidTop}, 25 ${liquidTop-5}, 25 ${liquidTop-15} 
-                                L 20 ${liquidTop-20} C 15 ${liquidTop-30}, 25 ${liquidTop-35}, 40 ${liquidTop-30}
-                                L 110 ${liquidTop-30} C 125 ${liquidTop-30}, 135 ${liquidTop-20}, 120 ${liquidTop} Z`;
+                    startFoamAnimation(liquidTop);
                 } else {
-                    const foamHeight = Math.max(8, liquidHeight * FOAM_RATIO);
-                    foamPath = `M 30,${liquidTop} C 40,${liquidTop-foamHeight}, 60,${liquidTop-foamHeight}, 75,${liquidTop} 
-                                S 100,${liquidTop+5}, 120,${liquidTop} Z`;
+                    const foamHeight = Math.max(8, liquidHeight * 0.15);
+                    const foamPath = `M 30,${liquidTop} C 40,${liquidTop-foamHeight}, 60,${liquidTop-foamHeight}, 75,${liquidTop} S 100,${liquidTop+5}, 120,${liquidTop} Z`;
+                    foam.setAttribute('d', foamPath);
                 }
-                foam.setAttribute('d', foamPath);
             } else {
                 foam.setAttribute('d', '');
             }
             updatePercentageDisplay(motivation);
+        }
+
+        function startFoamAnimation(liquidTop) {
+            let startTime = null;
+            const foamPath = elements.beer.foam;
+
+            function animate(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const elapsed = timestamp - startTime;
+
+                const y1 = Math.sin(elapsed / 800) * 2 - 15;
+                const y2 = Math.cos(elapsed / 700) * 3 - 30;
+                const y3 = Math.sin(elapsed / 900) * 2.5 - 35;
+                const y4 = Math.cos(elapsed / 600) * 2 - 30;
+                const y5 = Math.sin(elapsed / 1000) * 2 - 30;
+                const y6 = Math.cos(elapsed / 750) * 2.5;
+
+                const path = `M 30 ${liquidTop} 
+                                 C 30 ${liquidTop}, 25 ${liquidTop + y1}, 25 ${liquidTop + y1} 
+                                 L 20 ${liquidTop-20} 
+                                 C 15 ${liquidTop + y2}, 25 ${liquidTop + y3}, 40 ${liquidTop + y4} 
+                                 L 110 ${liquidTop + y5} 
+                                 C 125 ${liquidTop + y5}, 135 ${liquidTop + y6}, 120 ${liquidTop} Z`;
+                
+                foamPath.setAttribute('d', path);
+                foamAnimationId = requestAnimationFrame(animate);
+            }
+            foamAnimationId = requestAnimationFrame(animate);
         }
         
         // --- Animation Logic ---
