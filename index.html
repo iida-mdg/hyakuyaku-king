@@ -11,6 +11,7 @@
     <style>
         :root {
             --theme-color: #f6e05e; /* Default theme color */
+            --whiskey-color: #F39C12; /* Changed: Brighter whiskey color for visibility */
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', sans-serif;
@@ -79,6 +80,34 @@
             background-color: var(--theme-color);
             color: #1c1c1e;
         }
+        /* Beer Rain Effect */
+        .beer-rain-container {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .beer-drop {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(to bottom, rgba(210, 105, 30, 0), rgba(210, 105, 30, 1));
+            opacity: 0; /* Start transparent */
+        }
+        .splash {
+            position: absolute;
+            width: 10px;
+            height: 5px;
+            background: transparent;
+            border-top: 2px solid var(--whiskey-color);
+            border-radius: 50%;
+            animation: splash 0.3s ease-out forwards;
+        }
+        @keyframes splash {
+            0% { transform: scale(0, 0); opacity: 1; }
+            50% { transform: scale(1.5, 0.7); opacity: 0.8; }
+            100% { transform: scale(2, 0); opacity: 0; }
+        }
     </style>
 </head>
 <body class="text-gray-200">
@@ -87,18 +116,19 @@
 
         <!-- Screen 1: Motivation Slider -->
         <div id="main-screen" class="app-screen overflow-y-auto">
-            <header class="p-4 z-30 flex justify-between items-center h-20">
+            <div id="beer-rain-back" class="beer-rain-container z-0"></div>
+            <header class="p-4 z-20 flex justify-between items-center h-20">
                 <div id="auth-status-container">
                     <!-- User profile icon and name will be injected here -->
                 </div>
-                <div id="notification-text-container" class="relative">
+                <div id="notification-text-container" class="relative text-right">
                     <!-- Notification text will be injected here -->
                 </div>
             </header>
 
-            <main class="flex flex-col items-center p-8 pt-0">
+            <main class="flex flex-col items-center p-8 pt-0 z-10">
                 <div class="flex flex-col justify-center items-center w-full">
-                    <div id="beer-container" class="w-64 h-80 mx-auto my-4 flex-shrink-0">
+                    <div id="beer-container" class="w-64 h-80 mx-auto my-4 flex-shrink-0 relative z-10 flex justify-center items-center">
                         <svg id="beer-svg" viewBox="0 0 150 200" class="w-full h-full" overflow="visible">
                             <defs>
                                 <clipPath id="glass-clip">
@@ -121,6 +151,7 @@
                             <path d="M 125 50 C 150 60, 150 130, 125 140 L 122 135 C 140 125, 140 65, 122 55 Z" fill="#e2e8f0" opacity="0.2"/>
                             <path d="M 40 30 C 45 80, 45 150, 40 180" fill="none" stroke="url(#glass-shine)" stroke-width="5" stroke-linecap="round" />
                         </svg>
+                        <img id="whiskey-image" src="https://iida-mdg.github.io/nomibe-app/whiskey.png" class="hidden h-full object-contain" alt="ウイスキーボトル">
                     </div>
                     <div class="w-full max-w-xs flex-shrink-0">
                         <input type="range" id="motivation-slider" min="0" max="100" value="50" class="w-full">
@@ -130,8 +161,8 @@
                     </div>
                 </div>
             </main>
-            <!-- Changed: Button is now at the end of the content flow -->
-            <footer class="p-4 w-full mt-4 mb-8">
+            <div id="beer-rain-front" class="beer-rain-container z-20"></div>
+            <footer class="p-4 w-full mt-auto z-20">
                 <button id="publish-motivation-btn" class="w-full text-white font-bold py-3 rounded-2xl interactive-item" style="transition: background-color 0.3s ease;">
                     みんなの飲みベを見る
                 </button>
@@ -201,6 +232,10 @@
         let allPosts = [];
         let currentSortOrder = 'motivation';
         let tempColorIndex = 0;
+        
+        let hyperModeActive = false;
+        let hyperModeTimer = null;
+        let currentMotivation = 50;
 
         const elements = {
             screens: { main: document.getElementById('main-screen'), results: document.getElementById('results-screen') },
@@ -209,12 +244,16 @@
             notificationTextContainer: document.getElementById('notification-text-container'),
             slider: document.getElementById('motivation-slider'),
             percentageDisplay: document.getElementById('percentage-display'),
+            beerSvg: document.getElementById('beer-svg'),
+            whiskeyImage: document.getElementById('whiskey-image'),
             beer: { liquid: document.getElementById('beer-liquid'), foam: document.getElementById('beer-foam'), carbonationBubbles: document.getElementById('carbonation-bubbles'), poppingBubbles: document.getElementById('popping-bubbles') },
             publishBtn: document.getElementById('publish-motivation-btn'),
             backBtn: document.getElementById('back-to-main-btn'),
             participantsList: document.getElementById('participants-list'),
             profileModal: { container: document.getElementById('profile-setup-modal'), avatar: document.getElementById('avatar-preview'), nameInput: document.getElementById('name-input'), saveBtn: document.getElementById('save-profile-button') },
-            sortControls: { byMotivation: document.getElementById('sort-by-motivation-btn'), byDate: document.getElementById('sort-by-date-btn') }
+            sortControls: { byMotivation: document.getElementById('sort-by-motivation-btn'), byDate: document.getElementById('sort-by-date-btn') },
+            beerRainBack: document.getElementById('beer-rain-back'),
+            beerRainFront: document.getElementById('beer-rain-front'),
         };
 
         // --- Master UI Control Function ---
@@ -303,7 +342,11 @@
                 renderUI();
             });
             
-            elements.slider.addEventListener('input', (e) => updateBeerVisualization(parseInt(e.target.value)));
+            elements.slider.addEventListener('input', handleSliderInput);
+            elements.slider.addEventListener('mousedown', handleSliderHold);
+            elements.slider.addEventListener('touchstart', handleSliderHold);
+            elements.slider.addEventListener('mouseup', handleSliderRelease);
+            elements.slider.addEventListener('touchend', handleSliderRelease);
 
             const pm = elements.profileModal;
             pm.nameInput.addEventListener('input', () => {
@@ -342,8 +385,12 @@
             if (postDoc.exists()) {
                 const motivation = postDoc.data().motivation;
                 if (typeof motivation === 'number') {
-                    elements.slider.value = motivation;
-                    updateBeerVisualization(motivation);
+                    if (motivation === 120) {
+                        activateHyperMode(false);
+                    } else {
+                        elements.slider.value = motivation;
+                        handleSliderInput();
+                    }
                 }
             }
         }
@@ -367,11 +414,11 @@
 
             currentAppState = AppState.LOADING;
             renderUI();
-            const motivation = parseInt(elements.slider.value);
+            
             const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
             try {
                 await setDoc(postDocRef, {
-                    motivation: motivation,
+                    motivation: currentMotivation,
                     name: userProfile.name,
                     avatarSeed: userProfile.name,
                     colorIndex: userProfile.colorIndex,
@@ -408,17 +455,21 @@
             unsubscribeMainScreen = onSnapshot(q, (snapshot) => {
                 const posts = snapshot.docs.map(doc => doc.data());
                 const hundredCount = posts.filter(p => p.motivation === 100).length;
-                updateNotificationText(hundredCount);
+                const hyperCount = posts.filter(p => p.motivation === 120).length;
+                updateNotificationText(hundredCount, hyperCount);
             });
         }
         
-        function updateNotificationText(count) {
+        function updateNotificationText(hundredCount, hyperCount) {
             const container = elements.notificationTextContainer;
-            if (count > 0) {
-                container.innerHTML = `<div class="text-white font-bold text-sm">100%が${count}人います</div>`;
-            } else {
-                container.innerHTML = '';
+            let html = '';
+            if (hyperCount > 0) {
+                html += `<div class="font-bold text-sm text-red-500">120%が${hyperCount}人います</div>`;
             }
+            if (hundredCount > 0) {
+                html += `<div class="text-white font-bold text-sm">100%が${hundredCount}人います</div>`;
+            }
+            container.innerHTML = html;
         }
 
         function updateSortButtons() {
@@ -453,7 +504,6 @@
                 const isMe = post.id === userId;
                 const motivation = post.motivation || 0;
                 const div = document.createElement('div');
-                // Changed: Use ring-amber-500 for the user's own card
                 div.className = `element-bg rounded-2xl p-4 relative overflow-hidden flex items-center justify-between ${isMe ? 'ring-2 ring-amber-500' : ''}`;
 
                 const liquidBgId = `liquid-bg-${post.id}`;
@@ -472,7 +522,7 @@
                                 </clipPath>
                             </defs>
                             <g class="liquid-container">
-                                <path id="${liquidBgId}" fill="#fbbF24" />
+                                <path id="${liquidBgId}" />
                                 <g class="bubbles-bg-container" clip-path="url(#clip-${liquidBgId})"></g>
                             </g>
                         </svg>
@@ -490,17 +540,26 @@
                             <span class="text-2xl text-gray-300 font-semibold ml-1">%</span>
                         </div>
                     </div>`;
+                
+                const liquidPathEl = div.querySelector(`#${liquidBgId}`);
+                if (motivation === 120) {
+                    liquidPathEl.setAttribute('fill', 'var(--whiskey-color)');
+                } else {
+                    liquidPathEl.setAttribute('fill', '#fbbF24');
+                }
+
                 elements.participantsList.appendChild(div);
                 const bubblesContainer = div.querySelector('.bubbles-bg-container');
                 const liquidPath = div.querySelector(`#${liquidBgId}`);
                 const bubbles = [];
-                const numBubbles = Math.floor(5 + 60 * (motivation / 100));
+                const numBubbles = motivation === 120 ? 0 : Math.floor(5 + 60 * (motivation / 100));
                 for(let i = 0; i < numBubbles; i++) {
                     const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
                     ellipse.setAttribute('fill', 'white');
                     ellipse.setAttribute('opacity', '0.7');
                     bubblesContainer.appendChild(ellipse);
-                    bubbles.push({ el: ellipse, x: Math.random() * 100, y: Math.random() * 100 + 105, r: Math.random() * 0.67 + 0.22, speed: (0.05 + Math.random() * 0.1) * (1 + motivation / 100 * 2) });
+                    const speedMultiplier = 1 + motivation / 100 * 2;
+                    bubbles.push({ el: ellipse, x: Math.random() * 100, y: Math.random() * 100 + 105, r: Math.random() * 0.67 + 0.22, speed: (0.05 + Math.random() * 0.1) * speedMultiplier });
                 }
                 resultsAnimations.push({ id: post.id, cardId: cardId, path: liquidPath, bubbles: bubbles, motivation: motivation, isActive: currentlyVisible.has(cardId) });
                 if (observer) observer.observe(div);
@@ -518,7 +577,7 @@
                     const cardElement = document.getElementById(anim.cardId);
                     if (!cardElement) return;
                     const motivation = anim.motivation;
-                    const topY = 100 - motivation;
+                    const topY = motivation >= 100 ? 0 : 100 - motivation;
                     const swayX = Math.sin(elapsed / 2500 + anim.id.charCodeAt(0)) * 8; 
                     const swayY = Math.cos(elapsed / 2000 + anim.id.charCodeAt(1)) * 5;
                     const controlPointX = 50 + Math.sin(elapsed / 2200 + anim.id.charCodeAt(2)) * 10;
@@ -592,8 +651,11 @@
         }
         
         // --- Visualization & Helpers ---
-        function updateAppTheme(colorIndex) {
-            const color = AVATAR_COLORS[colorIndex] ? AVATAR_COLORS[colorIndex][0] : '#f97316';
+        function updateAppTheme(colorIndex, isHyper = false) {
+            const whiskeyColor = '#D2691E';
+            const userColor = AVATAR_COLORS[colorIndex] ? AVATAR_COLORS[colorIndex][0] : '#f97316';
+            const color = isHyper ? whiskeyColor : userColor;
+            
             document.documentElement.style.setProperty('--theme-color', color);
             elements.publishBtn.style.backgroundColor = color;
         }
@@ -602,25 +664,39 @@
         let foamAnimationId = null; 
 
         function updateBeerVisualization(motivation) {
+            currentMotivation = motivation;
             beerState.motivation = motivation;
             const liquid = elements.beer.liquid;
             const foam = elements.beer.foam;
-            const GLASS_BOTTOM_Y = 185;
-            const MAX_LIQUID_HEIGHT = 165;
-            const liquidHeight = (motivation / 100) * MAX_LIQUID_HEIGHT;
-            const liquidTop = GLASS_BOTTOM_Y - liquidHeight;
-            if (motivation > 0) liquid.setAttribute('d', `M 30 ${liquidTop} V 185 C 30 195, 120 195, 120 185 V ${liquidTop} Z`);
-            else liquid.setAttribute('d', '');
-            beerState.liquidTop = liquidTop;
-            if (foamAnimationId) { cancelAnimationFrame(foamAnimationId); foamAnimationId = null; }
-            if (liquidHeight > 0) {
-                if (motivation === 100) startFoamAnimation(liquidTop);
-                else {
-                    const foamHeight = Math.max(8, liquidHeight * 0.15);
-                    foam.setAttribute('d', `M 30,${liquidTop} C 40,${liquidTop-foamHeight}, 60,${liquidTop-foamHeight}, 75,${liquidTop} S 100,${liquidTop+5}, 120,${liquidTop} Z`);
-                }
+            
+            if (hyperModeActive) {
+                elements.beerSvg.classList.add('hidden');
+                elements.whiskeyImage.classList.remove('hidden');
+                foam.setAttribute('d', ''); // No foam in hyper mode
             } else {
-                foam.setAttribute('d', '');
+                elements.beerSvg.classList.remove('hidden');
+                elements.whiskeyImage.classList.add('hidden');
+                const GLASS_BOTTOM_Y = 185;
+                const MAX_LIQUID_HEIGHT = 165;
+                const liquidHeight = (motivation / 100) * MAX_LIQUID_HEIGHT;
+                const liquidTop = GLASS_BOTTOM_Y - liquidHeight;
+                if (motivation > 0) {
+                    liquid.setAttribute('d', `M 30 ${liquidTop} V 185 C 30 195, 120 195, 120 185 V ${liquidTop} Z`);
+                } else {
+                    liquid.setAttribute('d', '');
+                }
+                beerState.liquidTop = liquidTop;
+
+                if (foamAnimationId) { cancelAnimationFrame(foamAnimationId); foamAnimationId = null; }
+                if (liquidHeight > 0) {
+                    if (motivation === 100) startFoamAnimation(liquidTop);
+                    else {
+                        const foamHeight = Math.max(8, liquidHeight * 0.15);
+                        foam.setAttribute('d', `M 30,${liquidTop} C 40,${liquidTop-foamHeight}, 60,${liquidTop-foamHeight}, 75,${liquidTop} S 100,${liquidTop+5}, 120,${liquidTop} Z`);
+                    }
+                } else {
+                    foam.setAttribute('d', '');
+                }
             }
             updatePercentageDisplay(motivation);
         }
@@ -646,7 +722,7 @@
         const carbonationBubbles = [];
         const poppingBubbles = [];
         function startAnimations() {
-            for (let i = 0; i < 40; i++) {
+            for (let i = 0; i < 80; i++) { // Increased bubble count for hyper mode
                 const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
                 elements.beer.carbonationBubbles.appendChild(circle);
                 carbonationBubbles.push({ el: circle, x: 35 + Math.random() * 80, y: 190, r: Math.random() * 1.2 + 0.3, baseSpeed: Math.random() * 0.5 + 0.2 });
@@ -657,19 +733,29 @@
                 poppingBubbles.push({ el: circle, x: 0, y: 0, r: 0, lifetime: 999, maxLifetime: 100 });
             }
             function animateBeer() {
-                const motivationRatio = beerState.motivation / 100;
-                const activeBubbles = Math.floor(carbonationBubbles.length * motivationRatio);
-                carbonationBubbles.forEach((b, index) => {
-                    if (index < activeBubbles && beerState.motivation > 0) {
-                        const speedMultiplier = 0.5 + motivationRatio * 2.5;
+                const motivationRatio = Math.min(beerState.motivation, 100) / 100;
+                const speedMultiplier = hyperModeActive ? 10 : 0.5 + motivationRatio * 2.5;
+                const activeBubbleCount = hyperModeActive ? 80 : Math.floor(40 * motivationRatio);
+
+                for (let i = 0; i < carbonationBubbles.length; i++) {
+                    const b = carbonationBubbles[i];
+                    if (i < activeBubbleCount && beerState.motivation > 0) {
                         b.y -= b.baseSpeed * speedMultiplier;
-                        if (b.y < beerState.liquidTop) { b.y = 190; b.x = 35 + Math.random() * 80; }
+                        if (b.y < (hyperModeActive ? -500 : beerState.liquidTop)) {
+                            b.y = 190;
+                            b.x = 35 + Math.random() * 80;
+                        }
                         b.el.setAttribute('r', b.r);
-                    } else { b.el.setAttribute('r', 0); }
-                    b.el.setAttribute('cx', b.x); b.el.setAttribute('cy', b.y); b.el.classList.add('carbonation-bubble');
-                });
+                    } else {
+                        b.el.setAttribute('r', 0);
+                    }
+                    b.el.setAttribute('cx', b.x);
+                    b.el.setAttribute('cy', b.y);
+                    b.el.classList.add('carbonation-bubble');
+                }
+
                 poppingBubbles.forEach(b => {
-                    if (beerState.motivation > 0) {
+                    if (beerState.motivation > 0 && !hyperModeActive) {
                         b.lifetime++;
                         if (b.lifetime > b.maxLifetime) {
                             b.lifetime = 0; b.maxLifetime = 50 + Math.random() * 100;
@@ -678,8 +764,12 @@
                             b.r = Math.random() * 3 + 1;
                         }
                         b.el.setAttribute('r', b.r * (b.lifetime / b.maxLifetime));
-                    } else { b.el.setAttribute('r', 0); }
-                    b.el.setAttribute('cx', b.x); b.el.setAttribute('cy', b.y); b.el.classList.add('popping-bubble');
+                    } else {
+                        b.el.setAttribute('r', 0);
+                    }
+                    b.el.setAttribute('cx', b.x);
+                    b.el.setAttribute('cy', b.y);
+                    b.el.classList.add('popping-bubble');
                 });
                 requestAnimationFrame(animateBeer);
             }
@@ -687,12 +777,13 @@
             updateBeerVisualization(parseInt(elements.slider.value));
         }
         
-        let percentageTextEl, percentageClipText, percentageBubblesContainer;
+        let percentageTextEl, percentageClipText, percentageBubblesContainer, percentageRect;
         function initPercentageDisplay() {
-            elements.percentageDisplay.innerHTML = `<svg viewBox="0 0 220 80" class="w-full h-full" overflow="visible"><defs><clipPath id="percentage-clip"><text id="percentage-clip-text" x="110" y="60" text-anchor="middle" class="mochiy-pop-one-regular" font-size="70" fill="white">50%</text></clipPath></defs><text id="percentage-text" x="110" y="60" text-anchor="middle" class="mochiy-pop-one-regular" font-size="70" fill="#4a5568">50%</text><g clip-path="url(#percentage-clip)"><rect x="0" y="0" width="220" height="80" fill="#fbbF24" /><g id="percentage-bubbles-container"></g></g></svg>`;
+            elements.percentageDisplay.innerHTML = `<svg viewBox="0 0 220 80" class="w-full h-full" overflow="visible"><defs><clipPath id="percentage-clip"><text id="percentage-clip-text" x="110" y="60" text-anchor="middle" class="mochiy-pop-one-regular" font-size="70" fill="white">50%</text></clipPath></defs><text id="percentage-text" x="110" y="60" text-anchor="middle" class="mochiy-pop-one-regular" font-size="70" fill="#4a5568">50%</text><g clip-path="url(#percentage-clip)"><rect id="percentage-rect" x="0" y="0" width="220" height="80" fill="#fbbF24" /><g id="percentage-bubbles-container"></g></g></svg>`;
             percentageTextEl = document.getElementById('percentage-text');
             percentageClipText = document.getElementById('percentage-clip-text');
             percentageBubblesContainer = document.getElementById('percentage-bubbles-container');
+            percentageRect = document.getElementById('percentage-rect');
             const percentageBubbles = [];
             for (let i = 0; i < 40; i++) {
                 const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
@@ -704,7 +795,8 @@
                     b.y -= b.speed;
                     if (b.y < -b.r) { b.y = 80 + b.r; b.x = Math.random() * 220; }
                     b.el.setAttribute('cx', b.x); b.el.setAttribute('cy', b.y); b.el.setAttribute('r', b.r);
-                    b.el.setAttribute('fill', 'white'); b.el.setAttribute('opacity', '0.7');
+                    b.el.setAttribute('fill', 'white');
+                    b.el.setAttribute('opacity', '0.7');
                 });
                 requestAnimationFrame(animatePercentage);
             }
@@ -716,7 +808,89 @@
             if(percentageTextEl) {
                 percentageTextEl.textContent = text;
                 percentageClipText.textContent = text;
+                if (motivation === 120) {
+                    percentageRect.setAttribute('fill', 'var(--whiskey-color)');
+                } else {
+                    percentageRect.setAttribute('fill', '#fbbF24');
+                }
             }
+        }
+        
+        // --- Hidden Command Logic ---
+        function handleSliderInput() {
+            if (hyperModeActive) {
+                deactivateHyperMode();
+            }
+            updateBeerVisualization(parseInt(elements.slider.value));
+        }
+        function handleSliderHold(e) {
+            if (e.target.value == 100) {
+                hyperModeTimer = setTimeout(() => {
+                    if (e.target.value == 100) {
+                        activateHyperMode(true);
+                    }
+                }, 2000);
+            }
+        }
+        function handleSliderRelease() {
+            clearTimeout(hyperModeTimer);
+        }
+        function activateHyperMode(withAnimation) {
+            if (hyperModeActive) return;
+            hyperModeActive = true;
+            updateBeerVisualization(120);
+            updateAppTheme(userProfile.colorIndex, true);
+            if (withAnimation) {
+                startBeerRain();
+            }
+        }
+        function deactivateHyperMode() {
+            if (!hyperModeActive) return;
+            hyperModeActive = false;
+            elements.slider.value = 100;
+            updateBeerVisualization(100);
+            updateAppTheme(userProfile.colorIndex, false);
+            stopBeerRain();
+        }
+        function startBeerRain() {
+            const rainContainers = [elements.beerRainBack, elements.beerRainFront];
+            rainContainers.forEach(container => {
+                container.innerHTML = ''; // Clear previous rain
+                const mainElement = elements.screens.main;
+                for (let i = 0; i < 25; i++) {
+                    const drop = document.createElement('div');
+                    drop.className = 'beer-drop';
+                    drop.style.left = `${Math.random() * 100}%`;
+                    const duration = (0.5 + Math.random() * 0.5) * 1000;
+                    drop.style.animationDelay = `${Math.random() * 1000}ms`;
+                    container.appendChild(drop);
+
+                    const animation = drop.animate([
+                        { transform: 'translateY(-20px)', opacity: 0 },
+                        { opacity: 1, offset: 0.1 },
+                        { transform: `translateY(${mainElement.clientHeight - elements.publishBtn.offsetHeight}px)`, opacity: 1 }
+                    ], {
+                        duration: duration,
+                        delay: parseFloat(drop.style.animationDelay),
+                    });
+
+                    animation.onfinish = () => {
+                        const splash = document.createElement('div');
+                        splash.className = 'splash';
+                        splash.style.left = drop.style.left;
+                        splash.style.bottom = `${elements.publishBtn.offsetHeight}px`;
+                        container.appendChild(splash);
+                        setTimeout(() => {
+                           if(container.contains(splash)) container.removeChild(splash);
+                        }, 300);
+                        if(container.contains(drop)) container.removeChild(drop);
+                    };
+                }
+            });
+        }
+        function stopBeerRain() {
+            elements.beerRainBack.innerHTML = '';
+            elements.beerRainFront.innerHTML = '';
         }
         
         function formatTimeAgo(timestamp) {
