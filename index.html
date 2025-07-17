@@ -12,6 +12,7 @@
         :root {
             --theme-color: #f6e05e; /* Default theme color */
         }
+        /* Changed: Removed fixed height and overflow hidden to allow scrolling */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', sans-serif;
             -webkit-tap-highlight-color: transparent;
@@ -83,47 +84,55 @@
 </head>
 <body class="text-gray-200">
 
+    <!-- Changed: Container now allows content to define its height -->
     <div id="app-container" class="max-w-md mx-auto min-h-screen bg-black relative">
 
         <!-- Screen 1: Motivation Slider -->
         <div id="main-screen" class="app-screen">
-            <div id="auth-status-container" class="absolute top-4 left-4 z-30">
-                <!-- User profile icon and name will be injected here by JS -->
-            </div>
-
-            <main class="flex-grow flex flex-col justify-center items-center p-8 w-full pt-20">
-                <div id="beer-container" class="w-64 h-80 mx-auto my-8 mt-4">
-                    <svg id="beer-svg" viewBox="0 0 150 200" class="w-full h-full" overflow="visible">
-                        <defs>
-                            <clipPath id="glass-clip">
-                                <path d="M 30 20 V 185 C 30 195, 120 195, 120 185 V 20 Z" />
-                            </clipPath>
-                            <linearGradient id="glass-shine" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" style="stop-color:white; stop-opacity:0" />
-                                <stop offset="50%" style="stop-color:white; stop-opacity:0.3" />
-                                <stop offset="100%" style="stop-color:white; stop-opacity:0" />
-                            </linearGradient>
-                        </defs>
-                        <path d="M 25 10 C 25 20, 125 20, 125 10 L 122 185 C 122 195, 28 195, 28 185 Z" fill="#e2e8f0" opacity="0.1"/>
-                        <g clip-path="url(#glass-clip)">
-                            <path id="beer-liquid" d="" fill="#fbbF24" />
-                            <g id="carbonation-bubbles"></g>
-                        </g>
-                        <path id="beer-foam" d="" fill="#ffffff"/>
-                        <g id="popping-bubbles"></g>
-                        <path d="M 20 5 C 20 20, 130 20, 130 5 L 125 190 C 125 200, 25 200, 25 190 Z" fill="transparent" stroke="#e2e8f0" stroke-width="0.5" opacity="0.3" />
-                        <path d="M 125 50 C 150 60, 150 130, 125 140 L 122 135 C 140 125, 140 65, 122 55 Z" fill="#e2e8f0" opacity="0.2"/>
-                        <path d="M 40 30 C 45 80, 45 150, 40 180" fill="none" stroke="url(#glass-shine)" stroke-width="5" stroke-linecap="round" />
-                    </svg>
+            <header class="p-4 z-30 flex justify-between items-center h-20">
+                <div id="auth-status-container">
+                    <!-- User profile icon and name will be injected here -->
                 </div>
-                <div class="w-full max-w-xs">
-                    <input type="range" id="motivation-slider" min="0" max="100" value="50" class="w-full">
-                    <div id="percentage-display" class="text-center h-20 mt-4">
-                        <!-- SVG Percentage will be rendered here -->
+                <div id="notification-text-container" class="relative">
+                    <!-- Notification text will be injected here -->
+                </div>
+            </header>
+
+            <main class="flex flex-col items-center p-8 pt-0">
+                <div class="flex flex-col justify-center items-center w-full">
+                    <div id="beer-container" class="w-64 h-80 mx-auto my-4 flex-shrink-0">
+                        <svg id="beer-svg" viewBox="0 0 150 200" class="w-full h-full" overflow="visible">
+                            <defs>
+                                <clipPath id="glass-clip">
+                                    <path d="M 30 20 V 185 C 30 195, 120 195, 120 185 V 20 Z" />
+                                </clipPath>
+                                <linearGradient id="glass-shine" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:white; stop-opacity:0" />
+                                    <stop offset="50%" style="stop-color:white; stop-opacity:0.3" />
+                                    <stop offset="100%" style="stop-color:white; stop-opacity:0" />
+                                </linearGradient>
+                            </defs>
+                            <path d="M 25 10 C 25 20, 125 20, 125 10 L 122 185 C 122 195, 28 195, 28 185 Z" fill="#e2e8f0" opacity="0.1"/>
+                            <g clip-path="url(#glass-clip)">
+                                <path id="beer-liquid" d="" fill="#fbbF24" />
+                                <g id="carbonation-bubbles"></g>
+                            </g>
+                            <path id="beer-foam" d="" fill="#ffffff"/>
+                            <g id="popping-bubbles"></g>
+                            <path d="M 20 5 C 20 20, 130 20, 130 5 L 125 190 C 125 200, 25 200, 25 190 Z" fill="transparent" stroke="#e2e8f0" stroke-width="0.5" opacity="0.3" />
+                            <path d="M 125 50 C 150 60, 150 130, 125 140 L 122 135 C 140 125, 140 65, 122 55 Z" fill="#e2e8f0" opacity="0.2"/>
+                            <path d="M 40 30 C 45 80, 45 150, 40 180" fill="none" stroke="url(#glass-shine)" stroke-width="5" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                    <div class="w-full max-w-xs flex-shrink-0">
+                        <input type="range" id="motivation-slider" min="0" max="100" value="50" class="w-full">
+                        <div id="percentage-display" class="text-center h-20 mt-4">
+                            <!-- SVG Percentage will be rendered here -->
+                        </div>
                     </div>
                 </div>
             </main>
-            <footer class="p-4 sticky bottom-0 w-full bg-black/80 backdrop-blur-lg">
+            <footer class="p-4 w-full bg-black/80 backdrop-blur-lg mt-auto">
                 <button id="publish-motivation-btn" class="w-full text-white font-bold py-3 rounded-2xl interactive-item" style="transition: background-color 0.3s ease;">
                     みんなの飲みベを見る
                 </button>
@@ -188,14 +197,17 @@
             ['#ec4899','#f472b6'], ['#ef4444','#f87171'], ['#10b981','#34d399'], ['#6366f1','#818cf8']
         ];
 
-        let db, auth, userId = null, userProfile = null, unsubscribePosts = null;
+        let db, auth, userId = null, userProfile = null;
+        let unsubscribeResults = null, unsubscribeMainScreen = null;
         let allPosts = [];
         let currentSortOrder = 'motivation';
+        let tempColorIndex = 0;
 
         const elements = {
             screens: { main: document.getElementById('main-screen'), results: document.getElementById('results-screen') },
             loadingOverlay: document.getElementById('loading-overlay'),
             authStatusContainer: document.getElementById('auth-status-container'),
+            notificationTextContainer: document.getElementById('notification-text-container'),
             slider: document.getElementById('motivation-slider'),
             percentageDisplay: document.getElementById('percentage-display'),
             beer: { liquid: document.getElementById('beer-liquid'), foam: document.getElementById('beer-foam'), carbonationBubbles: document.getElementById('carbonation-bubbles'), poppingBubbles: document.getElementById('popping-bubbles') },
@@ -259,8 +271,12 @@
                             </div>
                         `;
                         currentAppState = AppState.READY;
+                        loadUserMotivation();
+                        setupMainScreenListeners();
                     } else {
                         currentAppState = AppState.NEEDS_PROFILE;
+                        tempColorIndex = Math.floor(Math.random() * AVATAR_COLORS.length);
+                        elements.profileModal.avatar.innerHTML = generateAvatar('？', tempColorIndex);
                     }
                 } else {
                     try {
@@ -278,12 +294,13 @@
         function setupEventListeners() {
             elements.publishBtn.addEventListener('click', publishAndShowResults);
             elements.backBtn.addEventListener('click', () => {
-                if(unsubscribePosts) unsubscribePosts();
-                unsubscribePosts = null;
+                if(unsubscribeResults) unsubscribeResults();
+                unsubscribeResults = null;
                 stopResultsAnimation();
                 if (observer) observer.disconnect();
                 observer = null;
                 currentScreen = 'main';
+                setupMainScreenListeners();
                 renderUI();
             });
             
@@ -293,7 +310,7 @@
             pm.nameInput.addEventListener('input', () => {
                 const name = pm.nameInput.value.trim();
                 pm.saveBtn.disabled = !name;
-                const colorIndex = userProfile ? userProfile.colorIndex : 0;
+                const colorIndex = userProfile ? userProfile.colorIndex : tempColorIndex;
                 pm.avatar.innerHTML = generateAvatar(name || '？', colorIndex);
             });
             pm.saveBtn.addEventListener('click', saveProfile);
@@ -320,6 +337,18 @@
         }
 
         // --- Core Logic ---
+        async function loadUserMotivation() {
+            const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
+            const postDoc = await getDoc(postDocRef);
+            if (postDoc.exists()) {
+                const motivation = postDoc.data().motivation;
+                if (typeof motivation === 'number') {
+                    elements.slider.value = motivation;
+                    updateBeerVisualization(motivation);
+                }
+            }
+        }
+
         let observer = null;
         function setupIntersectionObserver() {
             if (observer) observer.disconnect();
@@ -334,21 +363,23 @@
 
         async function publishAndShowResults() {
             if (currentAppState !== AppState.READY) return;
+            if (unsubscribeMainScreen) unsubscribeMainScreen();
+            unsubscribeMainScreen = null;
+
             currentAppState = AppState.LOADING;
             renderUI();
             const motivation = parseInt(elements.slider.value);
             const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
             try {
-                // Changed: Include colorIndex in the post data
                 await setDoc(postDocRef, {
                     motivation: motivation,
                     name: userProfile.name,
                     avatarSeed: userProfile.name,
                     colorIndex: userProfile.colorIndex,
                     updatedAt: serverTimestamp()
-                });
+                }, { merge: true });
                 setupIntersectionObserver();
-                setupRealtimeListener();
+                setupResultsListener();
                 currentScreen = 'results';
             } catch (error) {
                 console.error("Failed to publish motivation:", error);
@@ -359,17 +390,40 @@
             }
         }
 
-        function setupRealtimeListener() {
-            if (unsubscribePosts) unsubscribePosts();
+        function setupResultsListener() {
+            if (unsubscribeResults) unsubscribeResults();
             const postsCollectionRef = collection(db, `artifacts/${appId}/public/data/motivation_posts`);
             const twentyHoursAgo = new Date(Date.now() - 20 * 60 * 60 * 1000);
             const q = query(postsCollectionRef, where("updatedAt", ">=", twentyHoursAgo));
-            unsubscribePosts = onSnapshot(q, (snapshot) => {
+            unsubscribeResults = onSnapshot(q, (snapshot) => {
                 allPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 sortAndRenderPosts();
             }, (error) => console.error("Snapshot error:", error));
         }
+
+        function setupMainScreenListeners() {
+            if (unsubscribeMainScreen) unsubscribeMainScreen();
+            const postsCollectionRef = collection(db, `artifacts/${appId}/public/data/motivation_posts`);
+            const twentyHoursAgo = new Date(Date.now() - 20 * 60 * 60 * 1000);
+            const q = query(postsCollectionRef, where("updatedAt", ">=", twentyHoursAgo));
+            unsubscribeMainScreen = onSnapshot(q, (snapshot) => {
+                const posts = snapshot.docs.map(doc => doc.data());
+                const hundredCount = posts.filter(p => p.motivation === 100).length;
+                updateNotificationText(hundredCount);
+            });
+        }
         
+        // Changed: Notification text updated
+        function updateNotificationText(count) {
+            const container = elements.notificationTextContainer;
+            if (count > 0) {
+                // Changed: Font class removed
+                container.innerHTML = `<div class="text-white font-bold text-sm">100%が${count}人います</div>`;
+            } else {
+                container.innerHTML = '';
+            }
+        }
+
         function updateSortButtons() {
             elements.sortControls.byMotivation.classList.toggle('active', currentSortOrder === 'motivation');
             elements.sortControls.byDate.classList.toggle('active', currentSortOrder === 'date');
@@ -402,11 +456,12 @@
                 const isMe = post.id === userId;
                 const motivation = post.motivation || 0;
                 const div = document.createElement('div');
-                div.className = `element-bg rounded-2xl p-4 relative overflow-hidden flex items-center justify-between ${isMe ? 'ring-2 ring-amber-500' : ''}`;
+                div.className = `element-bg rounded-2xl p-4 relative overflow-hidden flex items-center justify-between ${isMe ? 'ring-2' : ''}`;
+                if (isMe) div.style.borderColor = 'var(--theme-color)';
+
                 const liquidBgId = `liquid-bg-${post.id}`;
                 const cardId = `card-${post.id}`;
                 div.id = cardId;
-                // Changed: Use post.colorIndex for consistent avatar colors
                 const colorIndex = typeof post.colorIndex !== 'undefined' 
                     ? post.colorIndex 
                     : Math.abs((post.avatarSeed||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % AVATAR_COLORS.length;
@@ -414,7 +469,15 @@
                 div.innerHTML = `
                     <div class="absolute top-0 left-0 w-full h-full z-0">
                         <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                            <g class="liquid-container"><path id="${liquidBgId}" fill="#fbbF24" /><g class="bubbles-bg-container"></g></g>
+                            <defs>
+                                <clipPath id="clip-${liquidBgId}">
+                                    <path id="clip-path-${liquidBgId}"></path>
+                                </clipPath>
+                            </defs>
+                            <g class="liquid-container">
+                                <path id="${liquidBgId}" fill="#fbbF24" />
+                                <g class="bubbles-bg-container" clip-path="url(#clip-${liquidBgId})"></g>
+                            </g>
                         </svg>
                     </div>
                     <div class="relative z-10 flex items-center justify-between w-full">
@@ -434,13 +497,14 @@
                 const bubblesContainer = div.querySelector('.bubbles-bg-container');
                 const liquidPath = div.querySelector(`#${liquidBgId}`);
                 const bubbles = [];
+                // Changed: Bubble size reduced
                 const numBubbles = Math.floor(5 + 60 * (motivation / 100));
                 for(let i = 0; i < numBubbles; i++) {
                     const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
                     ellipse.setAttribute('fill', 'white');
                     ellipse.setAttribute('opacity', '0.7');
                     bubblesContainer.appendChild(ellipse);
-                    bubbles.push({ el: ellipse, x: Math.random() * 100, y: Math.random() * 100 + 105, r: Math.random() * 1.5 + 0.5, speed: (0.05 + Math.random() * 0.1) * (1 + motivation / 100 * 2) });
+                    bubbles.push({ el: ellipse, x: Math.random() * 100, y: Math.random() * 100 + 105, r: Math.random() * 0.67 + 0.22, speed: (0.05 + Math.random() * 0.1) * (1 + motivation / 100 * 2) });
                 }
                 resultsAnimations.push({ id: post.id, cardId: cardId, path: liquidPath, bubbles: bubbles, motivation: motivation, isActive: currentlyVisible.has(cardId) });
                 if (observer) observer.observe(div);
@@ -462,8 +526,18 @@
                     const swayX = Math.sin(elapsed / 2500 + anim.id.charCodeAt(0)) * 8; 
                     const swayY = Math.cos(elapsed / 2000 + anim.id.charCodeAt(1)) * 5;
                     const controlPointX = 50 + Math.sin(elapsed / 2200 + anim.id.charCodeAt(2)) * 10;
-                    if (motivation > 0) anim.path.setAttribute('d', `M -10 ${topY + swayY} Q ${controlPointX} ${topY + swayY + swayX}, 110 ${topY + swayY} V 110 H -10 Z`);
-                    else anim.path.setAttribute('d', '');
+                    const liquidPathD = `M -10 ${topY + swayY} Q ${controlPointX} ${topY + swayY + swayX}, 110 ${topY + swayY} V 110 H -10 Z`;
+                    
+                    if (motivation > 0) {
+                        anim.path.setAttribute('d', liquidPathD);
+                        const clipPath = document.getElementById(`clip-path-${anim.path.id}`);
+                        if (clipPath) clipPath.setAttribute('d', liquidPathD);
+                    } else {
+                        anim.path.setAttribute('d', '');
+                        const clipPath = document.getElementById(`clip-path-${anim.path.id}`);
+                        if (clipPath) clipPath.setAttribute('d', '');
+                    }
+
                     const aspect = cardElement.clientWidth / cardElement.clientHeight;
                     if (!aspect || !isFinite(aspect)) return;
                     anim.bubbles.forEach(b => {
@@ -492,7 +566,7 @@
             const profileData = { name };
             if (wasInitialSetup) {
                 profileData.createdAt = serverTimestamp();
-                profileData.colorIndex = Math.floor(Math.random() * AVATAR_COLORS.length);
+                profileData.colorIndex = tempColorIndex;
             }
             const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
             try {
@@ -509,6 +583,7 @@
                 if (wasInitialSetup) {
                     currentAppState = AppState.READY;
                     currentScreen = 'main';
+                    setupMainScreenListeners();
                     renderUI();
                 } else {
                     elements.profileModal.container.classList.remove('is-open');
