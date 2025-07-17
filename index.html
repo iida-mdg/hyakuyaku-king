@@ -11,7 +11,7 @@
     <style>
         :root {
             --theme-color: #f6e05e; /* Default theme color */
-            --whiskey-color: #F39C12; /* Changed: Brighter whiskey color for visibility */
+            --whiskey-color: #F39C12; /* Brighter whiskey color for visibility */
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', sans-serif;
@@ -108,6 +108,29 @@
             50% { transform: scale(1.5, 0.7); opacity: 0.8; }
             100% { transform: scale(2, 0); opacity: 0; }
         }
+        /* Comment display style */
+        .comment-display {
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            color: #e5e7eb;
+            text-align: center;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            max-width: 90%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
     </style>
 </head>
 <body class="text-gray-200">
@@ -195,6 +218,18 @@
              </div>
         </div>
         
+        <!-- Added: Comment Input Modal -->
+        <div id="comment-modal" class="modal-container fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
+             <div class="element-bg rounded-2xl w-full max-w-sm p-6 text-center">
+                 <h2 class="text-xl font-bold mb-4">コメント</h2>
+                 <textarea id="comment-input" placeholder="ひとことどうぞ！" class="w-full bg-black border element-border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4 h-24 resize-none"></textarea>
+                 <div class="flex gap-2">
+                    <button id="cancel-comment-button" class="w-full bg-gray-600 text-white font-bold py-3 rounded-lg hover:bg-gray-700 interactive-item">キャンセル</button>
+                    <button id="save-comment-button" class="w-full bg-amber-600 text-white font-bold py-3 rounded-lg hover:bg-amber-700 interactive-item">保存</button>
+                 </div>
+             </div>
+        </div>
+
         <!-- Loading overlay -->
         <div id="loading-overlay" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 transition-opacity duration-300">
              <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-amber-500"></div>
@@ -204,7 +239,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, getDoc, serverTimestamp, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, serverTimestamp, collection, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- App State Management ---
         const AppState = { LOADING: 'loading', NEEDS_PROFILE: 'needs_profile', READY: 'ready', ERROR: 'error' };
@@ -251,6 +286,12 @@
             backBtn: document.getElementById('back-to-main-btn'),
             participantsList: document.getElementById('participants-list'),
             profileModal: { container: document.getElementById('profile-setup-modal'), avatar: document.getElementById('avatar-preview'), nameInput: document.getElementById('name-input'), saveBtn: document.getElementById('save-profile-button') },
+            commentModal: {
+                container: document.getElementById('comment-modal'),
+                input: document.getElementById('comment-input'),
+                saveBtn: document.getElementById('save-comment-button'),
+                cancelBtn: document.getElementById('cancel-comment-button')
+            },
             sortControls: { byMotivation: document.getElementById('sort-by-motivation-btn'), byDate: document.getElementById('sort-by-date-btn') },
             beerRainBack: document.getElementById('beer-rain-back'),
             beerRainFront: document.getElementById('beer-rain-front'),
@@ -375,6 +416,30 @@
                 pm.avatar.innerHTML = generateAvatar(userProfile.name || '？', userProfile.colorIndex);
                 pm.saveBtn.disabled = !userProfile.name;
                 pm.container.classList.add('is-open');
+            });
+            
+            // Added: Comment Modal Listeners
+            elements.participantsList.addEventListener('click', (e) => {
+                const card = e.target.closest('.participant-card');
+                if (card && card.dataset.userId === userId) {
+                    const post = allPosts.find(p => p.id === userId);
+                    elements.commentModal.input.value = post?.comment || '';
+                    elements.commentModal.container.classList.add('is-open');
+                }
+            });
+            elements.commentModal.cancelBtn.addEventListener('click', () => {
+                elements.commentModal.container.classList.remove('is-open');
+            });
+            elements.commentModal.saveBtn.addEventListener('click', async () => {
+                const comment = elements.commentModal.input.value.trim();
+                const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
+                try {
+                    await updateDoc(postDocRef, { comment: comment });
+                } catch (error) {
+                    console.error("Failed to save comment:", error);
+                } finally {
+                    elements.commentModal.container.classList.remove('is-open');
+                }
             });
         }
 
@@ -504,7 +569,8 @@
                 const isMe = post.id === userId;
                 const motivation = post.motivation || 0;
                 const div = document.createElement('div');
-                div.className = `element-bg rounded-2xl p-4 relative overflow-hidden flex items-center justify-between ${isMe ? 'ring-2 ring-amber-500' : ''}`;
+                div.className = `participant-card element-bg rounded-2xl p-4 relative overflow-hidden flex items-center justify-between ${isMe ? 'ring-2 ring-amber-500' : ''}`;
+                div.dataset.userId = post.id;
 
                 const liquidBgId = `liquid-bg-${post.id}`;
                 const cardId = `card-${post.id}`;
@@ -513,7 +579,13 @@
                     ? post.colorIndex 
                     : Math.abs((post.avatarSeed||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % AVATAR_COLORS.length;
 
+                let commentHTML = '';
+                if (post.comment) {
+                    commentHTML = `<div class="comment-display">${post.comment}</div>`;
+                }
+
                 div.innerHTML = `
+                    ${commentHTML}
                     <div class="absolute top-0 left-0 w-full h-full z-0">
                         <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
                             <defs>
@@ -652,7 +724,7 @@
         
         // --- Visualization & Helpers ---
         function updateAppTheme(colorIndex, isHyper = false) {
-            const whiskeyColor = '#D2691E';
+            const whiskeyColor = 'var(--whiskey-color)';
             const userColor = AVATAR_COLORS[colorIndex] ? AVATAR_COLORS[colorIndex][0] : '#f97316';
             const color = isHyper ? whiskeyColor : userColor;
             
