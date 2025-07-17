@@ -12,7 +12,6 @@
         :root {
             --theme-color: #f6e05e; /* Default theme color */
         }
-        /* Changed: Removed fixed height and overflow hidden to allow scrolling */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', sans-serif;
             -webkit-tap-highlight-color: transparent;
@@ -84,11 +83,10 @@
 </head>
 <body class="text-gray-200">
 
-    <!-- Changed: Container now allows content to define its height -->
     <div id="app-container" class="max-w-md mx-auto min-h-screen bg-black relative">
 
         <!-- Screen 1: Motivation Slider -->
-        <div id="main-screen" class="app-screen">
+        <div id="main-screen" class="app-screen overflow-y-auto">
             <header class="p-4 z-30 flex justify-between items-center h-20">
                 <div id="auth-status-container">
                     <!-- User profile icon and name will be injected here -->
@@ -132,7 +130,8 @@
                     </div>
                 </div>
             </main>
-            <footer class="p-4 w-full bg-black/80 backdrop-blur-lg mt-auto">
+            <!-- Changed: Button is now at the end of the content flow -->
+            <footer class="p-4 w-full mt-4 mb-8">
                 <button id="publish-motivation-btn" class="w-full text-white font-bold py-3 rounded-2xl interactive-item" style="transition: background-color 0.3s ease;">
                     みんなの飲みベを見る
                 </button>
@@ -413,11 +412,9 @@
             });
         }
         
-        // Changed: Notification text updated
         function updateNotificationText(count) {
             const container = elements.notificationTextContainer;
             if (count > 0) {
-                // Changed: Font class removed
                 container.innerHTML = `<div class="text-white font-bold text-sm">100%が${count}人います</div>`;
             } else {
                 container.innerHTML = '';
@@ -456,8 +453,8 @@
                 const isMe = post.id === userId;
                 const motivation = post.motivation || 0;
                 const div = document.createElement('div');
-                div.className = `element-bg rounded-2xl p-4 relative overflow-hidden flex items-center justify-between ${isMe ? 'ring-2' : ''}`;
-                if (isMe) div.style.borderColor = 'var(--theme-color)';
+                // Changed: Use ring-amber-500 for the user's own card
+                div.className = `element-bg rounded-2xl p-4 relative overflow-hidden flex items-center justify-between ${isMe ? 'ring-2 ring-amber-500' : ''}`;
 
                 const liquidBgId = `liquid-bg-${post.id}`;
                 const cardId = `card-${post.id}`;
@@ -497,7 +494,6 @@
                 const bubblesContainer = div.querySelector('.bubbles-bg-container');
                 const liquidPath = div.querySelector(`#${liquidBgId}`);
                 const bubbles = [];
-                // Changed: Bubble size reduced
                 const numBubbles = Math.floor(5 + 60 * (motivation / 100));
                 for(let i = 0; i < numBubbles; i++) {
                     const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
