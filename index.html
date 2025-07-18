@@ -1136,21 +1136,16 @@
             const topUsers = new Set(recordsArray.filter(([, r]) => r.level === topLevel).map(([uid]) => uid));
 
             const listWrapper = document.createElement('div');
-            listWrapper.className = 'space-y-2';
+            listWrapper.className = 'space-y-1';
             recordsArray.forEach(([uid, record], index) => {
                 const profile = profiles[index];
                 const isMe = uid === userId;
-                const isTop = topUsers.has(uid);
                 listWrapper.innerHTML += `
-                    <div class="bg-[#2C2C2E] rounded-xl p-2.5 flex items-center justify-between interactive-item ${isMe ? 'ring-2 ring-amber-500' : ''}">
-                        <div class="flex items-center gap-3 flex-grow min-w-0">
-                            ${generateAvatar(profile.name, profile.color, 'w-10 h-10 flex-shrink-0')}
-                            <p class="font-medium text-sm text-gray-200 truncate">${profile.name}</p>
-                        </div>
-                        <div class="flex items-center justify-end gap-2 text-xl pr-1 h-10 flex-shrink-0" style="min-width: 80px;">
-                            ${isTop ? '<span class="text-lg">👑</span>' : ''}
-                            ${getHeartIcon(record.level, 0.7)}
-                            <span class="font-bold text-base w-5 text-right text-gray-200">${record.level}</span>
+                    <div class="bg-[#2C2C2E] rounded-lg py-1.5 px-3 flex items-center justify-between ${isMe ? 'ring-2 ring-amber-500' : ''}">
+                        <p class="font-medium text-sm text-gray-200 truncate flex-grow">${profile.name}</p>
+                        <div class="flex items-center justify-end gap-1.5 flex-shrink-0">
+                            <div class="w-4 h-4">${getHeartIcon(record.level)}</div>
+                            <span class="font-bold text-sm w-4 text-right text-gray-200">${record.level}</span>
                         </div>
                     </div>`;
             });
