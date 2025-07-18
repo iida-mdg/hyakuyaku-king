@@ -10,9 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --theme-color: #f6e05e;
-            --whiskey-color: #F39C12;
-            --hepa-color: #27ae60; /* Added Hepa color */
+            --theme-color: #f6e05e; /* Default theme color */
+            --whiskey-color: #F39C12; /* Brighter whiskey color for visibility */
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', sans-serif;
@@ -20,9 +19,24 @@
             background-color: #000;
             color: #f3f4f6;
         }
-        .mochiy-pop-one-regular { font-family: 'Mochiy Pop One', sans-serif; }
-        .app-page { display: none; }
-        .app-page.is-active { display: flex; flex-direction: column; }
+        .mochiy-pop-one-regular {
+            font-family: 'Mochiy Pop One', sans-serif;
+        }
+        .app-screen {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            flex-direction: column;
+        }
+        .app-screen.is-active {
+            display: flex;
+            opacity: 1;
+        }
         .modal-container { display: none; opacity: 0; transition: opacity 0.3s ease-in-out; }
         .modal-container.is-open { display: flex; opacity: 1; }
         .element-bg { background-color: #1C1C1E; }
@@ -32,119 +46,180 @@
         .interactive-item:active { transform: scale(0.97); }
         .hidden { display: none !important; }
 
-        /* Slider */
-        input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; cursor: pointer; outline: none; border-radius: 9999px; background: #3A3A3C; height: 12px; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; height: 32px; width: 32px; background-color: var(--theme-color); border-radius: 50%; margin-top: -10px; transition: background-color 0.3s ease; }
-        
-        /* Bubbles */
-        .carbonation-bubble { fill: #fefcbf; opacity: 0.6; }
-        .popping-bubble { fill: none; stroke: #fff; stroke-width: 0.5; }
-
-        /* Sort Buttons */
-        .sort-btn { background-color: #3A3A3C; color: #a0a0a0; font-weight: bold; transition: all 0.2s ease; }
-        .sort-btn.active { background-color: var(--theme-color); color: #1c1c1e; }
-        
-        /* Rain Effect */
-        .beer-rain-container { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none; }
-        .beer-drop { position: absolute; width: 2px; height: 20px; background: linear-gradient(to bottom, rgba(210, 105, 30, 0), rgba(210, 105, 30, 1)); opacity: 0; }
-        .splash { position: absolute; width: 10px; height: 5px; background: transparent; border-top: 2px solid var(--whiskey-color); border-radius: 50%; animation: splash 0.3s ease-out forwards; }
-        @keyframes splash { 0% { transform: scale(0, 0); opacity: 1; } 50% { transform: scale(1.5, 0.7); opacity: 0.8; } 100% { transform: scale(2, 0); opacity: 0; } }
-        
-        /* Comment Bubble */
-        .comment-display { background-color: rgba(28, 28, 30, 0.8); backdrop-filter: blur(4px); padding: 4px 10px; border-radius: 9999px; font-size: 0.8rem; color: #e5e7eb; text-align: center; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; animation: pulse-comment 5s infinite ease-in-out; z-index: 20; }
-        @keyframes pulse-comment { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
-
-        /* Schedule Page Styles */
-        .date-item-container { background-color: #1C1C1E; border-radius: 1rem; overflow: hidden; }
-        .date-item-header:not(:last-child) { border-bottom: 1px solid #3A3A3C; }
-        .date-item.is-open .date-item-header, .date-item.voted-on:not(.is-open) .date-item-header { background-color: #2C2C2E; }
-        .date-item-header:active { background-color: #3A3A3C; transform: scale(0.98); }
-        .details-container { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out; padding: 0 1rem; }
-        .date-item.is-open .details-container { max-height: 100vh; padding: 0.75rem; }
-        
-        .slide-up-modal-content { transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1); }
-        .modal-container.is-open .slide-up-modal-content { transform: translateY(0); }
+        /* Custom Slider Styles using CSS Variable */
+        input[type=range] {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; cursor: pointer; outline: none;
+            border-radius: 9999px; background: #3A3A3C; height: 12px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            height: 32px; width: 32px; background-color: var(--theme-color);
+            border-radius: 50%;
+            margin-top: -10px;
+            transition: background-color 0.3s ease;
+        }
+        /* Animation bubbles */
+        .carbonation-bubble {
+            fill: #fefcbf;
+            opacity: 0.6;
+        }
+        .popping-bubble {
+            fill: none;
+            stroke: #fff;
+            stroke-width: 0.5;
+        }
+        /* Sort Buttons using CSS Variable */
+        .sort-btn {
+            background-color: #3A3A3C;
+            color: #a0a0a0;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        .sort-btn.active {
+            background-color: var(--theme-color);
+            color: #1c1c1e;
+        }
+        /* Beer Rain Effect */
+        .beer-rain-container {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .beer-drop {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(to bottom, rgba(210, 105, 30, 0), rgba(210, 105, 30, 1));
+            opacity: 0; /* Start transparent */
+        }
+        .splash {
+            position: absolute;
+            width: 10px;
+            height: 5px;
+            background: transparent;
+            border-top: 2px solid var(--whiskey-color);
+            border-radius: 50%;
+            animation: splash 0.3s ease-out forwards;
+        }
+        @keyframes splash {
+            0% { transform: scale(0, 0); opacity: 1; }
+            50% { transform: scale(1.5, 0.7); opacity: 0.8; }
+            100% { transform: scale(2, 0); opacity: 0; }
+        }
+        /* Comment display style */
+        .comment-display {
+            background-color: rgba(28, 28, 30, 0.8); /* Darker, more opaque background */
+            backdrop-filter: blur(4px);
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            color: #e5e7eb;
+            text-align: center;
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            max-width: 90%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            animation: pulse-comment 5s infinite ease-in-out; /* New animation */
+            z-index: 20; /* Ensure comment is on top */
+        }
+        @keyframes pulse-comment {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
     </style>
 </head>
 <body class="text-gray-200">
 
     <div id="app-container" class="max-w-md mx-auto min-h-screen bg-black relative">
-        
-        <!-- Unified Header -->
-        <header class="p-4 z-30 flex justify-between items-center h-16 flex-shrink-0 border-b border-gray-800">
-            <div id="page-switcher" class="flex items-center gap-2 cursor-pointer">
-                <h1 id="page-title" class="text-lg font-bold text-gray-100"></h1>
-                <svg id="page-switcher-icon" class="w-5 h-5 text-gray-400 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-            </div>
-            <div class="flex items-center gap-4">
-                 <div id="notification-text-container" class="relative text-right"></div>
-                 <div id="auth-status-container"></div>
-            </div>
-        </header>
 
-        <!-- Page Containers -->
-        <div id="page-container" class="flex-grow relative overflow-y-auto">
-            <!-- Page 1: Today's Motivation -->
-            <div id="today-page" class="app-page">
-                <div id="today-main-screen" class="flex flex-col h-full">
-                    <div id="beer-rain-back" class="beer-rain-container z-0"></div>
-                    <main class="flex-grow flex flex-col items-center p-8 pt-4 z-10">
-                        <div id="beer-container" class="w-64 h-80 mx-auto my-4 flex-shrink-0 relative z-10 flex justify-center items-center">
-                            <svg id="beer-svg" viewBox="0 0 150 200" class="w-full h-full" overflow="visible">
-                                <defs>
-                                    <clipPath id="glass-clip"><path d="M 30 20 V 185 C 30 195, 120 195, 120 185 V 20 Z" /></clipPath>
-                                    <linearGradient id="glass-shine" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:white; stop-opacity:0" /><stop offset="50%" style="stop-color:white; stop-opacity:0.3" /><stop offset="100%" style="stop-color:white; stop-opacity:0" /></linearGradient>
-                                </defs>
-                                <path d="M 25 10 C 25 20, 125 20, 125 10 L 122 185 C 122 195, 28 195, 28 185 Z" fill="#e2e8f0" opacity="0.1"/>
-                                <g clip-path="url(#glass-clip)"><path id="beer-liquid" d="" fill="#fbbF24" /><g id="carbonation-bubbles"></g></g>
-                                <path id="beer-foam" d="" fill="#ffffff"/><g id="popping-bubbles"></g>
-                                <path d="M 20 5 C 20 20, 130 20, 130 5 L 125 190 C 125 200, 25 200, 25 190 Z" fill="transparent" stroke="#e2e8f0" stroke-width="0.5" opacity="0.3" />
-                                <path d="M 125 50 C 150 60, 150 130, 125 140 L 122 135 C 140 125, 140 65, 122 55 Z" fill="#e2e8f0" opacity="0.2"/>
-                                <path d="M 40 30 C 45 80, 45 150, 40 180" fill="none" stroke="url(#glass-shine)" stroke-width="5" stroke-linecap="round" />
-                            </svg>
-                            <img id="whiskey-image" src="https://iida-mdg.github.io/nomibe-app/whiskey.png" class="hidden h-full object-contain" alt="ウイスキーボトル">
-                            <img id="hepa-image" src="https://iida-mdg.github.io/nomibe-app/hepa.png" class="hidden h-full object-contain" alt="ヘパリーゼ">
-                        </div>
-                        <div class="w-full max-w-xs flex-shrink-0">
-                            <input type="range" id="motivation-slider" min="0" max="100" value="50" class="w-full">
-                            <div id="percentage-display" class="text-center h-20 mt-4"></div>
-                        </div>
-                    </main>
-                    <div id="beer-rain-front" class="beer-rain-container z-20"></div>
-                    <footer class="p-4 w-full mt-auto z-20">
-                        <button id="publish-motivation-btn" class="w-full text-white font-bold py-3 rounded-2xl interactive-item">みんなの飲みベを見る</button>
-                    </footer>
+        <!-- Screen 1: Motivation Slider -->
+        <div id="main-screen" class="app-screen overflow-y-auto">
+            <div id="beer-rain-back" class="beer-rain-container z-0"></div>
+            <header class="p-4 z-20 flex justify-between items-center h-20">
+                <div id="auth-status-container">
+                    <!-- User profile icon and name will be injected here -->
                 </div>
-                <div id="today-results-screen" class="hidden h-full flex-col">
-                     <header class="bg-black/80 backdrop-blur-lg p-4 sticky top-0 z-20 border-b border-gray-800 w-full flex items-center justify-between">
-                        <button id="back-to-main-btn" class="text-amber-500 text-sm font-bold interactive-item px-2 py-1 rounded-lg">&lt; 戻る</button>
-                        <h1 class="text-lg font-bold text-gray-100">みんなの飲みベ</h1>
-                        <div id="sort-controls" class="flex items-center text-xs gap-1">
-                            <button id="sort-by-motivation-btn" class="sort-btn px-2 py-1 rounded-md">飲みべ順</button>
-                            <button id="sort-by-date-btn" class="sort-btn px-2 py-1 rounded-md">新着順</button>
-                        </div>
-                    </header>
-                    <main id="participants-list" class="flex-grow w-full p-4 space-y-3 overflow-y-auto"></main>
+                <div id="notification-text-container" class="relative text-right">
+                    <!-- Notification text will be injected here -->
                 </div>
-            </div>
-            <!-- Page 2: Schedule -->
-            <div id="schedule-page" class="app-page">
-                 <main class="p-4 space-y-4">
-                    <div id="date-list-container"></div>
-                 </main>
-            </div>
+            </header>
+
+            <main class="flex flex-col items-center p-8 pt-0 z-10">
+                <div class="flex flex-col justify-center items-center w-full">
+                    <div id="beer-container" class="w-64 h-80 mx-auto my-4 flex-shrink-0 relative z-10 flex justify-center items-center">
+                        <svg id="beer-svg" viewBox="0 0 150 200" class="w-full h-full" overflow="visible">
+                            <defs>
+                                <clipPath id="glass-clip">
+                                    <path d="M 30 20 V 185 C 30 195, 120 195, 120 185 V 20 Z" />
+                                </clipPath>
+                                <linearGradient id="glass-shine" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:white; stop-opacity:0" />
+                                    <stop offset="50%" style="stop-color:white; stop-opacity:0.3" />
+                                    <stop offset="100%" style="stop-color:white; stop-opacity:0" />
+                                </linearGradient>
+                            </defs>
+                            <path d="M 25 10 C 25 20, 125 20, 125 10 L 122 185 C 122 195, 28 195, 28 185 Z" fill="#e2e8f0" opacity="0.1"/>
+                            <g clip-path="url(#glass-clip)">
+                                <path id="beer-liquid" d="" fill="#fbbF24" />
+                                <g id="carbonation-bubbles"></g>
+                            </g>
+                            <path id="beer-foam" d="" fill="#ffffff"/>
+                            <g id="popping-bubbles"></g>
+                            <path d="M 20 5 C 20 20, 130 20, 130 5 L 125 190 C 125 200, 25 200, 25 190 Z" fill="transparent" stroke="#e2e8f0" stroke-width="0.5" opacity="0.3" />
+                            <path d="M 125 50 C 150 60, 150 130, 125 140 L 122 135 C 140 125, 140 65, 122 55 Z" fill="#e2e8f0" opacity="0.2"/>
+                            <path d="M 40 30 C 45 80, 45 150, 40 180" fill="none" stroke="url(#glass-shine)" stroke-width="5" stroke-linecap="round" />
+                        </svg>
+                        <img id="whiskey-image" src="https://iida-mdg.github.io/nomibe-app/whiskey.png" class="hidden h-full object-contain" alt="ウイスキーボトル">
+                    </div>
+                    <div class="w-full max-w-xs flex-shrink-0">
+                        <input type="range" id="motivation-slider" min="0" max="100" value="50" class="w-full">
+                        <div id="percentage-display" class="text-center h-20 mt-4">
+                            <!-- SVG Percentage will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+            <div id="beer-rain-front" class="beer-rain-container z-20"></div>
+            <footer class="p-4 w-full mt-auto z-20">
+                <button id="publish-motivation-btn" class="w-full text-white font-bold py-3 rounded-2xl interactive-item" style="transition: background-color 0.3s ease;">
+                    みんなの飲みベを見る
+                </button>
+            </footer>
         </div>
 
-        <!-- Modals -->
+        <!-- Screen 2: Results -->
+        <div id="results-screen" class="app-screen">
+            <header class="bg-black/80 backdrop-blur-lg p-4 sticky top-0 z-20 border-b border-gray-800 w-full flex items-center justify-between">
+                <button id="back-to-main-btn" class="text-amber-500 text-sm font-bold interactive-item px-2 py-1 rounded-lg">&lt; 戻る</button>
+                <h1 class="text-lg font-bold text-gray-100">みんなの飲みベ</h1>
+                <div id="sort-controls" class="flex items-center text-xs gap-1">
+                    <button id="sort-by-motivation-btn" class="sort-btn px-2 py-1 rounded-md">飲みべ順</button>
+                    <button id="sort-by-date-btn" class="sort-btn px-2 py-1 rounded-md">新着順</button>
+                </div>
+            </header>
+            <main id="participants-list" class="flex-grow w-full p-4 space-y-3 overflow-y-auto">
+                <!-- Participants will be rendered here -->
+            </main>
+        </div>
+
+        <!-- Profile Setup Modal -->
         <div id="profile-setup-modal" class="modal-container fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
              <div class="element-bg rounded-2xl w-full max-w-sm p-6 text-center">
                  <h2 class="text-xl font-bold mb-4">プロフィール設定</h2>
-                 <p class="text-gray-400 mb-6">あなたの名前を設定してください。</p>
+                 <p class="text-gray-400 mb-6">みんなに表示される<br>あなたの名前を設定してください。</p>
                  <div id="avatar-preview" class="mb-6 w-24 h-24 mx-auto"></div>
                  <input type="text" id="name-input" placeholder="名前を入力" class="w-full bg-black border element-border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4">
                  <button id="save-profile-button" class="w-full bg-amber-600 text-white font-bold py-3 rounded-lg hover:bg-amber-700 interactive-item disabled:bg-gray-600 disabled:cursor-not-allowed">保存する</button>
              </div>
         </div>
+        
+        <!-- Added: Comment Input Modal -->
         <div id="comment-modal" class="modal-container fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
              <div class="element-bg rounded-2xl w-full max-w-sm p-6 text-center">
                  <h2 class="text-xl font-bold mb-4">コメント</h2>
@@ -155,14 +230,8 @@
                  </div>
              </div>
         </div>
-        <div id="level-selector-modal" class="modal-container fixed inset-0 bg-black/60 items-end justify-center z-50 p-4">
-             <div class="w-full max-w-md mx-auto">
-                 <div id="level-selector-content" class="slide-up-modal-content bg-[#1C1C1E]/80 backdrop-blur-xl rounded-2xl w-full p-2 space-y-2">
-                     <div id="level-selector-options" class="flex justify-around items-center p-4"></div>
-                 </div>
-                 <button id="close-level-selector" class="slide-up-modal-content w-full bg-[#E5E5EA] text-black font-bold py-4 rounded-2xl mt-2 hover:bg-gray-300 transition-colors">キャンセル</button>
-             </div>
-        </div>
+
+        <!-- Loading overlay -->
         <div id="loading-overlay" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 transition-opacity duration-300">
              <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-amber-500"></div>
         </div>
@@ -171,13 +240,12 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, getDoc, serverTimestamp, collection, query, where, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, serverTimestamp, collection, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- App State Management ---
         const AppState = { LOADING: 'loading', NEEDS_PROFILE: 'needs_profile', READY: 'ready', ERROR: 'error' };
         let currentAppState = AppState.LOADING;
-        let currentPage = 'today'; // 'today' or 'schedule'
-        let currentTodayScreen = 'main'; // 'main' or 'results'
+        let currentScreen = 'main';
 
         // --- Firebase & Global Variables ---
         const firebaseConfig = {
@@ -196,70 +264,49 @@
         ];
 
         let db, auth, userId = null, userProfile = null;
-        let unsubscribeListeners = [];
         let unsubscribeResults = null, unsubscribeMainScreen = null;
         let allPosts = [];
         let currentSortOrder = 'motivation';
         let tempColorIndex = 0;
-        const userProfileCache = new Map();
         
         let hyperModeActive = false;
-        let hepaModeActive = false;
-        let commandTimer = null;
+        let hyperModeTimer = null;
         let currentMotivation = 50;
 
         const elements = {
-            // Pages
-            todayPage: document.getElementById('today-page'),
-            schedulePage: document.getElementById('schedule-page'),
-            // Header
-            pageSwitcher: document.getElementById('page-switcher'),
-            pageTitle: document.getElementById('page-title'),
-            pageSwitcherIcon: document.getElementById('page-switcher-icon'),
+            screens: { main: document.getElementById('main-screen'), results: document.getElementById('results-screen') },
+            loadingOverlay: document.getElementById('loading-overlay'),
             authStatusContainer: document.getElementById('auth-status-container'),
             notificationTextContainer: document.getElementById('notification-text-container'),
-            // Today Page
-            todayMainScreen: document.getElementById('today-main-screen'),
-            todayResultsScreen: document.getElementById('today-results-screen'),
             slider: document.getElementById('motivation-slider'),
             percentageDisplay: document.getElementById('percentage-display'),
             beerSvg: document.getElementById('beer-svg'),
             whiskeyImage: document.getElementById('whiskey-image'),
-            hepaImage: document.getElementById('hepa-image'),
             beer: { liquid: document.getElementById('beer-liquid'), foam: document.getElementById('beer-foam'), carbonationBubbles: document.getElementById('carbonation-bubbles'), poppingBubbles: document.getElementById('popping-bubbles') },
             publishBtn: document.getElementById('publish-motivation-btn'),
-            beerRainBack: document.getElementById('beer-rain-back'),
-            beerRainFront: document.getElementById('beer-rain-front'),
             backBtn: document.getElementById('back-to-main-btn'),
             participantsList: document.getElementById('participants-list'),
-            sortControls: { byMotivation: document.getElementById('sort-by-motivation-btn'), byDate: document.getElementById('sort-by-date-btn') },
-            // Schedule Page
-            dateListContainer: document.getElementById('date-list-container'),
-            // Modals
-            loadingOverlay: document.getElementById('loading-overlay'),
             profileModal: { container: document.getElementById('profile-setup-modal'), avatar: document.getElementById('avatar-preview'), nameInput: document.getElementById('name-input'), saveBtn: document.getElementById('save-profile-button') },
-            commentModal: { container: document.getElementById('comment-modal'), input: document.getElementById('comment-input'), saveBtn: document.getElementById('save-comment-button'), cancelBtn: document.getElementById('cancel-comment-button') },
-            levelSelectorModal: { container: document.getElementById('level-selector-modal'), content: document.getElementById('level-selector-content'), options: document.getElementById('level-selector-options'), closeBtn: document.getElementById('close-level-selector') }
+            commentModal: {
+                container: document.getElementById('comment-modal'),
+                input: document.getElementById('comment-input'),
+                saveBtn: document.getElementById('save-comment-button'),
+                cancelBtn: document.getElementById('cancel-comment-button')
+            },
+            sortControls: { byMotivation: document.getElementById('sort-by-motivation-btn'), byDate: document.getElementById('sort-by-date-btn') },
+            beerRainBack: document.getElementById('beer-rain-back'),
+            beerRainFront: document.getElementById('beer-rain-front'),
         };
 
         // --- Master UI Control Function ---
         function renderUI() {
             elements.loadingOverlay.classList.toggle('hidden', currentAppState !== AppState.LOADING);
             elements.profileModal.container.classList.toggle('is-open', currentAppState === AppState.NEEDS_PROFILE);
-            
             if (currentAppState === AppState.READY) {
-                elements.todayPage.classList.toggle('is-active', currentPage === 'today');
-                elements.schedulePage.classList.toggle('is-active', currentPage === 'schedule');
-                elements.pageTitle.textContent = currentPage === 'today' ? '今日の飲みべ' : '飲みべスケジュール';
-                elements.notificationTextContainer.style.display = currentPage === 'today' ? 'block' : 'none';
-
-                if (currentPage === 'today') {
-                    elements.todayMainScreen.style.display = currentTodayScreen === 'main' ? 'flex' : 'none';
-                    elements.todayResultsScreen.style.display = currentTodayScreen === 'results' ? 'flex' : 'none';
-                }
+                Object.values(elements.screens).forEach(s => s.classList.remove('is-active'));
+                if (elements.screens[currentScreen]) elements.screens[currentScreen].classList.add('is-active');
             } else {
-                elements.todayPage.classList.remove('is-active');
-                elements.schedulePage.classList.remove('is-active');
+                Object.values(elements.screens).forEach(s => s.classList.remove('is-active'));
             }
         }
 
@@ -297,14 +344,15 @@
                             setDoc(userDocRef, { colorIndex: userProfile.colorIndex }, { merge: true });
                         }
                         updateAppTheme(userProfile.colorIndex);
-                        const authStatusHTML = `
+                        elements.authStatusContainer.innerHTML = `
                             <div class="flex items-center gap-2 cursor-pointer interactive-item p-1 rounded-full bg-black/30 backdrop-blur-sm">
                                 ${generateAvatar(userProfile.name, userProfile.colorIndex, 'w-10 h-10 text-xl')}
+                                <span class="font-bold text-white pr-3">${userProfile.name}</span>
                             </div>
                         `;
-                        elements.authStatusContainer.innerHTML = authStatusHTML;
                         currentAppState = AppState.READY;
-                        initializeAppUI();
+                        loadUserMotivation();
+                        setupMainScreenListeners();
                     } else {
                         currentAppState = AppState.NEEDS_PROFILE;
                         tempColorIndex = Math.floor(Math.random() * AVATAR_COLORS.length);
@@ -321,30 +369,17 @@
                 renderUI();
             });
         }
-        
-        function initializeAppUI() {
-            generateDateList();
-            switchPage(currentPage, false); // Initialize the default page
-        }
 
         // --- Event Listeners ---
         function setupEventListeners() {
-            elements.pageSwitcher.addEventListener('click', () => {
-                switchPage(currentPage === 'today' ? 'schedule' : 'today');
-            });
-            
-            elements.publishBtn.addEventListener('click', () => {
-                currentTodayScreen = 'results';
-                publishAndShowResults();
-            });
-            
+            elements.publishBtn.addEventListener('click', publishAndShowResults);
             elements.backBtn.addEventListener('click', () => {
                 if(unsubscribeResults) unsubscribeResults();
                 unsubscribeResults = null;
                 stopResultsAnimation();
                 if (observer) observer.disconnect();
                 observer = null;
-                currentTodayScreen = 'main';
+                currentScreen = 'main';
                 setupMainScreenListeners();
                 renderUI();
             });
@@ -384,6 +419,7 @@
                 pm.container.classList.add('is-open');
             });
             
+            // Added: Comment Modal Listeners
             elements.participantsList.addEventListener('click', (e) => {
                 const card = e.target.closest('.participant-card');
                 if (card && card.dataset.userId === userId) {
@@ -406,47 +442,6 @@
                     elements.commentModal.container.classList.remove('is-open');
                 }
             });
-            
-            // Schedule Page Listeners
-            elements.dateListContainer.addEventListener('click', (e) => {
-                const actionTarget = e.target.closest('[data-action]');
-                if (!actionTarget) return;
-                const dateItem = actionTarget.closest('.date-item');
-                if (!dateItem) return;
-                const action = actionTarget.dataset.action;
-                if (action === 'open-selector') {
-                    e.stopPropagation();
-                    openLevelSelector(dateItem.dataset.date);
-                } else if (action === 'toggle-details') {
-                    toggleParticipantList(dateItem);
-                }
-            });
-            elements.levelSelectorModal.closeBtn.addEventListener('click', () => elements.levelSelectorModal.container.classList.remove('is-open'));
-        }
-
-        // --- Page Switching ---
-        function switchPage(page, animate = true) {
-            currentPage = page;
-            
-            // Detach all listeners first
-            unsubscribeListeners.forEach(unsub => unsub());
-            unsubscribeListeners = [];
-            if (unsubscribeMainScreen) {
-                unsubscribeMainScreen();
-                unsubscribeMainScreen = null;
-            }
-            if (unsubscribeResults) {
-                unsubscribeResults();
-                unsubscribeResults = null;
-            }
-
-            if (page === 'today') {
-                setupMainScreenListeners();
-                loadUserMotivation();
-            } else if (page === 'schedule') {
-                listenToAllMotivationData();
-            }
-            renderUI();
         }
 
         // --- Core Logic ---
@@ -458,8 +453,6 @@
                 if (typeof motivation === 'number') {
                     if (motivation === 120) {
                         activateHyperMode(false);
-                    } else if (motivation === -20) {
-                        activateHepaMode(false);
                     } else {
                         elements.slider.value = motivation;
                         handleSliderInput();
@@ -485,7 +478,7 @@
             if (unsubscribeMainScreen) unsubscribeMainScreen();
             unsubscribeMainScreen = null;
 
-            currentTodayScreen = 'results';
+            currentAppState = AppState.LOADING;
             renderUI();
             
             const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
@@ -499,11 +492,14 @@
                 }, { merge: true });
                 setupIntersectionObserver();
                 setupResultsListener();
+                currentScreen = 'results';
             } catch (error) {
                 console.error("Failed to publish motivation:", error);
-                currentTodayScreen = 'main';
+                currentScreen = 'main';
+            } finally {
+                currentAppState = AppState.READY;
                 renderUI();
-            } 
+            }
         }
 
         function setupResultsListener() {
@@ -527,7 +523,7 @@
                 const hundredCount = posts.filter(p => p.motivation === 100).length;
                 const hyperCount = posts.filter(p => p.motivation === 120).length;
                 updateNotificationText(hundredCount, hyperCount);
-            }, (error) => console.error("Error listening to main screen data:", error));
+            });
         }
         
         function updateNotificationText(hundredCount, hyperCount) {
@@ -621,8 +617,6 @@
                 const liquidPathEl = div.querySelector(`#${liquidBgId}`);
                 if (motivation === 120) {
                     liquidPathEl.setAttribute('fill', 'var(--whiskey-color)');
-                } else if (motivation === -20) {
-                    liquidPathEl.setAttribute('fill', 'var(--hepa-color)');
                 } else {
                     liquidPathEl.setAttribute('fill', '#fbbF24');
                 }
@@ -631,7 +625,7 @@
                 const bubblesContainer = div.querySelector('.bubbles-bg-container');
                 const liquidPath = div.querySelector(`#${liquidBgId}`);
                 const bubbles = [];
-                const numBubbles = motivation === 120 || motivation === -20 ? 0 : Math.floor(5 + 60 * (motivation / 100));
+                const numBubbles = motivation === 120 ? 0 : Math.floor(5 + 60 * (motivation / 100));
                 for(let i = 0; i < numBubbles; i++) {
                     const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
                     ellipse.setAttribute('fill', 'white');
@@ -662,16 +656,11 @@
                     const controlPointX = 50 + Math.sin(elapsed / 2200 + anim.id.charCodeAt(2)) * 10;
                     const liquidPathD = `M -10 ${topY + swayY} Q ${controlPointX} ${topY + swayY + swayX}, 110 ${topY + swayY} V 110 H -10 Z`;
                     
-                    if (motivation > 0 && motivation !== 120) {
+                    if (motivation > 0) {
                         anim.path.setAttribute('d', liquidPathD);
                         const clipPath = document.getElementById(`clip-path-${anim.path.id}`);
                         if (clipPath) clipPath.setAttribute('d', liquidPathD);
-                    } else if (motivation === 120) {
-                         anim.path.setAttribute('d', 'M -10 0 H 110 V 110 H -10 Z');
-                         const clipPath = document.getElementById(`clip-path-${anim.path.id}`);
-                         if (clipPath) clipPath.setAttribute('d', 'M -10 0 H 110 V 110 H -10 Z');
-                    }
-                    else {
+                    } else {
                         anim.path.setAttribute('d', '');
                         const clipPath = document.getElementById(`clip-path-${anim.path.id}`);
                         if (clipPath) clipPath.setAttribute('d', '');
@@ -713,16 +702,17 @@
                 const updatedDoc = await getDoc(userDocRef);
                 userProfile = updatedDoc.data();
                 updateAppTheme(userProfile.colorIndex);
-                const authStatusHTML = `
+                elements.authStatusContainer.innerHTML = `
                     <div class="flex items-center gap-2 cursor-pointer interactive-item p-1 rounded-full bg-black/30 backdrop-blur-sm">
                         ${generateAvatar(userProfile.name, userProfile.colorIndex, 'w-10 h-10 text-xl')}
+                        <span class="font-bold text-white pr-3">${userProfile.name}</span>
                     </div>
                 `;
-                elements.authStatusContainer.innerHTML = authStatusHTML;
-
                 if (wasInitialSetup) {
                     currentAppState = AppState.READY;
-                    initializeAppUI();
+                    currentScreen = 'main';
+                    setupMainScreenListeners();
+                    renderUI();
                 } else {
                     elements.profileModal.container.classList.remove('is-open');
                 }
@@ -734,14 +724,10 @@
         }
         
         // --- Visualization & Helpers ---
-        function updateAppTheme(colorIndex, isHyper = false, isHepa = false) {
+        function updateAppTheme(colorIndex, isHyper = false) {
             const whiskeyColor = 'var(--whiskey-color)';
-            const hepaColor = 'var(--hepa-color)';
             const userColor = AVATAR_COLORS[colorIndex] ? AVATAR_COLORS[colorIndex][0] : '#f97316';
-            
-            let color = userColor;
-            if (isHyper) color = whiskeyColor;
-            if (isHepa) color = hepaColor;
+            const color = isHyper ? whiskeyColor : userColor;
             
             document.documentElement.style.setProperty('--theme-color', color);
             elements.publishBtn.style.backgroundColor = color;
@@ -756,13 +742,13 @@
             const liquid = elements.beer.liquid;
             const foam = elements.beer.foam;
             
-            elements.beerSvg.classList.toggle('hidden', hyperModeActive || hepaModeActive);
-            elements.whiskeyImage.classList.toggle('hidden', !hyperModeActive);
-            elements.hepaImage.classList.toggle('hidden', !hepaModeActive);
-            
-            foam.setAttribute('d', ''); // No foam in hyper or hepa mode
-
-            if (!hyperModeActive && !hepaModeActive) {
+            if (hyperModeActive) {
+                elements.beerSvg.classList.add('hidden');
+                elements.whiskeyImage.classList.remove('hidden');
+                foam.setAttribute('d', ''); // No foam in hyper mode
+            } else {
+                elements.beerSvg.classList.remove('hidden');
+                elements.whiskeyImage.classList.add('hidden');
                 const GLASS_BOTTOM_Y = 185;
                 const MAX_LIQUID_HEIGHT = 165;
                 const liquidHeight = (motivation / 100) * MAX_LIQUID_HEIGHT;
@@ -781,6 +767,8 @@
                         const foamHeight = Math.max(8, liquidHeight * 0.15);
                         foam.setAttribute('d', `M 30,${liquidTop} C 40,${liquidTop-foamHeight}, 60,${liquidTop-foamHeight}, 75,${liquidTop} S 100,${liquidTop+5}, 120,${liquidTop} Z`);
                     }
+                } else {
+                    foam.setAttribute('d', '');
                 }
             }
             updatePercentageDisplay(motivation);
@@ -879,9 +867,7 @@
                 percentageBubbles.forEach(b => {
                     b.y -= b.speed;
                     if (b.y < -b.r) { b.y = 80 + b.r; b.x = Math.random() * 220; }
-                    b.el.setAttribute('cx', b.x);
-                    b.el.setAttribute('cy', b.y);
-                    b.el.setAttribute('r', b.r);
+                    b.el.setAttribute('cx', b.x); b.el.setAttribute('cy', b.y); b.el.setAttribute('r', b.r);
                     b.el.setAttribute('fill', 'white');
                     b.el.setAttribute('opacity', '0.7');
                 });
@@ -897,8 +883,6 @@
                 percentageClipText.textContent = text;
                 if (motivation === 120) {
                     percentageRect.setAttribute('fill', 'var(--whiskey-color)');
-                } else if (motivation === -20) {
-                    percentageRect.setAttribute('fill', 'var(--hepa-color)');
                 } else {
                     percentageRect.setAttribute('fill', '#fbbF24');
                 }
@@ -907,58 +891,45 @@
         
         // --- Hidden Command Logic ---
         function handleSliderInput() {
-            if (hyperModeActive) deactivateHyperMode();
-            if (hepaModeActive) deactivateHepaMode();
+            if (hyperModeActive) {
+                deactivateHyperMode();
+            }
             updateBeerVisualization(parseInt(elements.slider.value));
         }
         function handleSliderHold(e) {
-            clearTimeout(commandTimer);
             if (e.target.value == 100) {
-                commandTimer = setTimeout(() => {
-                    if (e.target.value == 100) activateHyperMode(true);
+                hyperModeTimer = setTimeout(() => {
+                    if (e.target.value == 100) {
+                        activateHyperMode(true);
+                    }
                 }, 2000);
-            } else if (e.target.value == 0) {
-                commandTimer = setTimeout(() => {
-                    if (e.target.value == 0) activateHepaMode(true);
-                }, 3000);
             }
         }
         function handleSliderRelease() {
-            clearTimeout(commandTimer);
+            clearTimeout(hyperModeTimer);
         }
         function activateHyperMode(withAnimation) {
-            if (hyperModeActive || hepaModeActive) return;
+            if (hyperModeActive) return;
             hyperModeActive = true;
             updateBeerVisualization(120);
-            updateAppTheme(userProfile.colorIndex, true, false);
-            if (withAnimation) startBeerRain();
+            updateAppTheme(userProfile.colorIndex, true);
+            if (withAnimation) {
+                startBeerRain();
+            }
         }
         function deactivateHyperMode() {
             if (!hyperModeActive) return;
             hyperModeActive = false;
             elements.slider.value = 100;
             updateBeerVisualization(100);
-            updateAppTheme(userProfile.colorIndex, false, false);
+            updateAppTheme(userProfile.colorIndex, false);
             stopBeerRain();
-        }
-        function activateHepaMode(withAnimation) {
-            if (hepaModeActive || hyperModeActive) return;
-            hepaModeActive = true;
-            updateBeerVisualization(-20);
-            updateAppTheme(userProfile.colorIndex, false, true);
-        }
-        function deactivateHepaMode() {
-            if (!hepaModeActive) return;
-            hepaModeActive = false;
-            elements.slider.value = 0;
-            updateBeerVisualization(0);
-            updateAppTheme(userProfile.colorIndex, false, false);
         }
         function startBeerRain() {
             const rainContainers = [elements.beerRainBack, elements.beerRainFront];
             rainContainers.forEach(container => {
                 container.innerHTML = ''; // Clear previous rain
-                const mainElement = elements.todayPage;
+                const mainElement = elements.screens.main;
                 for (let i = 0; i < 25; i++) {
                     const drop = document.createElement('div');
                     drop.className = 'beer-drop';
@@ -995,185 +966,24 @@
             elements.beerRainFront.innerHTML = '';
         }
         
-        const formatDate = (d, fmt) => fmt.replace('YYYY', d.getFullYear()).replace('M', d.getMonth() + 1).replace('D', d.getDate()).replace('W', ['日','月','火','水','木','金','土'][d.getDay()]);
-        const getHeartIcon = (l, s=1, c='') => { const cl={0:'text-gray-600',1:'text-amber-300',2:'text-amber-400',3:'text-orange-400',4:'text-orange-500',5:'text-red-500'}, f=l>=4?`drop-shadow(0 0 12px ${l===5?'#f59e0b88':'#fb923c88'})`:'', p=`<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>`; return `<svg xmlns="http://www.w3.org/2000/svg" class="h-full w-full ${cl[l]||cl[0]} ${c}" style="transform:scale(${s});filter:${f};" fill="${l===0?'none':'currentColor'}" stroke="${l===0?'currentColor':'none'}" stroke-width="1.5" viewBox="0 0 24 24">${p}</svg>`; };
-        const getTrashIcon = () => `<svg xmlns="http://www.w3.org/2000/svg" class="h-full w-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`;
-        const getLogicalToday = () => { const n = new Date(); if (n.getHours() < 5) n.setDate(n.getDate() - 1); return n; };
-        
+        function formatTimeAgo(timestamp) {
+            if (!timestamp || !timestamp.toDate) return '';
+            const now = new Date();
+            const seconds = Math.floor((now - timestamp.toDate()) / 1000);
+            if (seconds < 60) return 'たった今';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}分前`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}時間前`;
+            return `${Math.floor(hours / 24)}日前`;
+        }
+
         const generateAvatar = (seed, colorIndex, c='w-24 h-24 text-4xl') => {
             if(!seed) seed = '?';
             const colors = AVATAR_COLORS[colorIndex] || AVATAR_COLORS[0];
             const initial = seed.charAt(0).toUpperCase();
             return `<div class="rounded-full ${c} flex items-center justify-center" style="background-image: linear-gradient(to bottom right, ${colors[0]}, ${colors[1]})"><span class="font-bold text-white">${initial}</span></div>`;
         };
-
-        // --- Schedule Page Functions ---
-        function generateDateList() {
-            const container = document.createElement('div');
-            container.className = 'date-item-container';
-            const today = getLogicalToday();
-            for (let i = 0; i < 8; i++) { // Changed to 8 days
-                const date = new Date(today);
-                date.setDate(today.getDate() + i);
-                const dateString = formatDate(date, 'YYYY-MM-DD');
-                const displayString = formatDate(date, 'M月D日 (W)');
-                const div = document.createElement('div');
-                div.id = `date-${dateString}`;
-                div.className = 'date-item';
-                div.dataset.date = dateString;
-                div.dataset.displayDate = displayString;
-                let dayLabel = i === 0 ? '今日' : i === 1 ? '明日' : displayString;
-                div.innerHTML = `
-                    <div class="date-item-header p-4 flex items-center justify-between cursor-pointer interactive-item" data-action="toggle-details">
-                        <div class="flex-grow">
-                            <p class="font-bold text-base text-gray-100">${dayLabel} <span class="text-gray-400 font-normal text-sm">${i > 1 ? '' : displayString}</span></p>
-                            <div class="text-sm text-gray-400 flex items-center gap-3 mt-1" id="stats-${dateString}"></div>
-                        </div>
-                        <button class="main-heart-icon w-16 h-16 flex-shrink-0 flex items-center justify-center rounded-full" data-action="open-selector"></button>
-                    </div>
-                    <div class="details-container" id="details-${dateString}"></div>
-                `;
-                container.appendChild(div);
-            }
-            elements.dateListContainer.innerHTML = '';
-            elements.dateListContainer.appendChild(container);
-        }
-
-        function listenToAllMotivationData() {
-            unsubscribeListeners.forEach(unsub => unsub());
-            unsubscribeListeners = [];
-            const today = getLogicalToday();
-            for (let i = 0; i < 8; i++) { // Changed to 8 days
-                const date = new Date(today);
-                date.setDate(today.getDate() + i);
-                const dateString = formatDate(date, 'YYYY-MM-DD');
-                const docRef = doc(db, `artifacts/${appId}/public/data/drinking_motivation`, dateString);
-                const unsubscribe = onSnapshot(docRef, (docSnap) => {
-                    const data = docSnap.exists() ? docSnap.data() : { records: {} };
-                    updateDateItemUI(dateString, data.records || {});
-                });
-                unsubscribeListeners.push(unsubscribe);
-            }
-        }
-
-        async function fetchUserProfile(uid) {
-            if (userProfileCache.has(uid)) return userProfileCache.get(uid);
-            const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, uid);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists()) {
-                const profile = userDoc.data();
-                userProfileCache.set(uid, profile);
-                return profile;
-            }
-            return { name: `User ${uid.substring(0, 4)}`, color: '#808080' };
-        }
-
-        function updateDateItemUI(dateString, records) {
-            const dateElem = document.getElementById(`date-${dateString}`);
-            if (!dateElem) return;
-
-            const validRecords = Object.fromEntries(Object.entries(records).filter(([,r]) => r && r.level > 0));
-            const recordsArray = Object.values(validRecords);
-            const participantCount = recordsArray.length;
-            const totalLevel = recordsArray.reduce((sum, record) => sum + (record.level || 0), 0);
-            document.getElementById(`stats-${dateString}`).innerHTML = `
-                <span class="flex items-center gap-1.5"><svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" /></svg>${participantCount}</span>
-                <span class="flex items-center gap-1.5">${getHeartIcon(3, 1, 'h-4 w-4')}${totalLevel}</span>`;
-            
-            const myRecord = validRecords[userId] || { level: 0 };
-            dateElem.classList.toggle('voted-on', myRecord.level > 0);
-            const iconButton = dateElem.querySelector('.main-heart-icon');
-            if (iconButton) {
-                iconButton.innerHTML = getHeartIcon(myRecord.level, Math.min(0.8 + (totalLevel / 20), 2.0));
-            }
-            dateElem.dataset.records = JSON.stringify(validRecords);
-        }
-
-        function toggleParticipantList(clickedItem) {
-            const currentlyOpen = document.querySelector('.date-item.is-open');
-            if (currentlyOpen && currentlyOpen !== clickedItem) {
-                currentlyOpen.classList.remove('is-open');
-            }
-            clickedItem.classList.toggle('is-open');
-            if (clickedItem.classList.contains('is-open')) {
-                const records = JSON.parse(clickedItem.dataset.records || '{}');
-                renderParticipantList(clickedItem.dataset.date, records);
-            }
-        }
-
-        async function renderParticipantList(dateString, records) {
-            const listContainer = document.getElementById(`details-${dateString}`);
-            listContainer.innerHTML = '';
-
-            const recordsArray = Object.entries(records);
-            if (recordsArray.length === 0) {
-                listContainer.innerHTML = '<p class="text-gray-500 text-center py-4">まだ誰もいません👀</p>';
-                return;
-            }
-
-            recordsArray.sort(([, a], [, b]) => (b.level || 0) - (a.level || 0));
-            const profiles = await Promise.all(recordsArray.map(([uid]) => fetchUserProfile(uid)));
-            
-            const topLevel = recordsArray.length > 0 ? recordsArray[0][1].level : 0;
-            const topUsers = new Set(recordsArray.filter(([, r]) => r.level === topLevel).map(([uid]) => uid));
-
-            const listWrapper = document.createElement('div');
-            listWrapper.className = 'space-y-2';
-            recordsArray.forEach(([uid, record], index) => {
-                const profile = profiles[index];
-                const isMe = uid === userId;
-                const isTop = topUsers.has(uid);
-                listWrapper.innerHTML += `
-                    <div class="bg-[#2C2C2E] rounded-xl p-2.5 flex items-center justify-between interactive-item ${isMe ? 'ring-2 ring-amber-500' : ''}">
-                        <div class="flex items-center gap-3">
-                            ${generateAvatar(profile.name, profile.color, 'w-10 h-10')}
-                            <p class="font-medium text-sm text-gray-200">${profile.name}</p>
-                        </div>
-                        <div class="flex items-center gap-2 text-xl pr-1 h-10">
-                            ${isTop ? '<span class="text-lg">👑</span>' : ''}
-                            ${getHeartIcon(record.level, 0.7)}
-                            <span class="font-bold text-base w-5 text-right text-gray-200">${record.level}</span>
-                        </div>
-                    </div>`;
-            });
-            listContainer.appendChild(listWrapper);
-        }
-
-        function openLevelSelector(date) {
-            const container = elements.levelSelectorModal.options;
-            if (!container) return;
-            container.innerHTML = '';
-            [1, 2, 3, 4, 5, 0].forEach(i => {
-                const div = document.createElement('div');
-                div.className = 'text-center cursor-pointer transition-transform duration-200 hover:scale-110 active:scale-95';
-                div.innerHTML = i === 0
-                    ? `<div class="text-5xl h-16 w-12 flex items-center justify-center text-gray-500">${getTrashIcon()}</div>`
-                    : `<div class="text-5xl h-16 w-12 flex items-center justify-center">${getHeartIcon(i)}</div>`;
-                div.addEventListener('click', () => saveMotivation(date, i));
-                container.appendChild(div);
-            });
-            elements.levelSelectorModal.container.classList.add('is-open');
-        }
-
-        async function saveMotivation(dateString, level) {
-            if (!userId) return;
-            elements.levelSelectorModal.container.classList.remove('is-open');
-            const docRef = doc(db, `artifacts/${appId}/public/data/drinking_motivation`, dateString);
-            const fieldPath = `records.${userId}`;
-            try {
-                if (level === 0) {
-                    await updateDoc(docRef, { [fieldPath]: deleteField() });
-                } else {
-                    await setDoc(docRef, { records: { [userId]: { level } } }, { merge: true });
-                }
-            } catch (error) {
-                if (error.code === 'not-found' && level > 0) {
-                    await setDoc(docRef, { records: { [userId]: { level } } });
-                } else {
-                    console.error("Save Error:", error);
-                }
-            }
-        }
 
         main();
     </script>
