@@ -1143,11 +1143,11 @@
                 const isTop = topUsers.has(uid);
                 listWrapper.innerHTML += `
                     <div class="bg-[#2C2C2E] rounded-xl p-2.5 flex items-center justify-between interactive-item ${isMe ? 'ring-2 ring-amber-500' : ''}">
-                        <div class="flex items-center gap-3">
-                            ${generateAvatar(profile.name, profile.color, 'w-10 h-10')}
-                            <p class="font-medium text-sm text-gray-200">${profile.name}</p>
+                        <div class="flex items-center gap-3 flex-grow min-w-0">
+                            ${generateAvatar(profile.name, profile.color, 'w-10 h-10 flex-shrink-0')}
+                            <p class="font-medium text-sm text-gray-200 truncate">${profile.name}</p>
                         </div>
-                        <div class="flex items-center gap-2 text-xl pr-1 h-10">
+                        <div class="flex items-center justify-end gap-2 text-xl pr-1 h-10 flex-shrink-0" style="min-width: 80px;">
                             ${isTop ? '<span class="text-lg">👑</span>' : ''}
                             ${getHeartIcon(record.level, 0.7)}
                             <span class="font-bold text-base w-5 text-right text-gray-200">${record.level}</span>
