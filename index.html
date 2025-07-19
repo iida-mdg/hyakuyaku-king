@@ -330,7 +330,6 @@
         }
         
         function initializeAppUI() {
-            generateDateList();
             switchPage(currentPage, false); // Initialize the default page
         }
 
@@ -484,6 +483,9 @@
                 setupMainScreenListeners();
                 loadUserMotivation();
             } else if (page === 'schedule') {
+                if (elements.dateListContainer.innerHTML.trim() === '') {
+                     generateDateList();
+                }
                 listenToAllMotivationData();
             }
             renderUI();
