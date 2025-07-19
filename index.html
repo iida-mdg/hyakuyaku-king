@@ -400,36 +400,65 @@
                 if (card && card.dataset.userId === userId) {
                     const post = allPosts.find(p => p.id === userId);
                     elements.commentModal.input.value = post?.comment || '';
+                    elements.commentModal.saveBtn.dataset.context = 'today';
                     elements.commentModal.container.classList.add('is-open');
                 }
             });
             elements.commentModal.cancelBtn.addEventListener('click', () => {
                 elements.commentModal.container.classList.remove('is-open');
             });
-            elements.commentModal.saveBtn.addEventListener('click', async () => {
+            elements.commentModal.saveBtn.addEventListener('click', async (e) => {
+                const context = e.currentTarget.dataset.context;
                 const comment = elements.commentModal.input.value.trim();
-                const postDocRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
-                try {
-                    await updateDoc(postDocRef, { comment: comment });
-                } catch (error) {
-                    console.error("Failed to save comment:", error);
-                } finally {
-                    elements.commentModal.container.classList.remove('is-open');
+                
+                if (context === 'today') {
+                    const docRef = doc(db, `artifacts/${appId}/public/data/motivation_posts`, userId);
+                    try {
+                        await updateDoc(docRef, { comment: comment });
+                    } catch (error) { 
+                         if (error.code === 'not-found' || error.message.includes("No document to update")) {
+                            await setDoc(docRef, { comment: comment }, { merge: true });
+                         } else {
+                            console.error("Failed to save today's comment:", error); 
+                         }
+                    }
+                } else if (context) {
+                    const docRef = doc(db, `artifacts/${appId}/public/data/drinking_motivation`, context);
+                    const fieldPath = `records.${userId}.comment`;
+                    try {
+                        await updateDoc(docRef, { [fieldPath]: comment });
+                    } catch (error) { 
+                        if (error.code === 'not-found' || error.message.includes("No document to update")) {
+                           await setDoc(docRef, { records: { [userId]: { comment: comment } } }, { merge: true });
+                        } else {
+                           console.error("Failed to save schedule comment:", error); 
+                        }
+                    }
+                }
+
+                elements.commentModal.container.classList.remove('is-open');
+                if (e.currentTarget) {
+                    delete e.currentTarget.dataset.context;
                 }
             });
             
             // Schedule Page Listeners
             elements.dateListContainer.addEventListener('click', (e) => {
                 const actionTarget = e.target.closest('[data-action]');
-                if (!actionTarget) return;
-                const dateItem = actionTarget.closest('.date-item');
-                if (!dateItem) return;
-                const action = actionTarget.dataset.action;
-                if (action === 'open-selector') {
-                    e.stopPropagation();
-                    openLevelSelector(dateItem.dataset.date);
-                } else if (action === 'toggle-details') {
-                    toggleParticipantList(dateItem);
+                const participantItem = e.target.closest('.participant-item');
+
+                if (actionTarget) {
+                    const dateItem = actionTarget.closest('.date-item');
+                    if (!dateItem) return;
+                    const action = actionTarget.dataset.action;
+                    if (action === 'open-selector') {
+                        e.stopPropagation();
+                        openLevelSelector(dateItem.dataset.date);
+                    } else if (action === 'toggle-details') {
+                        toggleParticipantList(dateItem);
+                    }
+                } else if (participantItem && participantItem.dataset.userId === userId) {
+                    openScheduleCommentModal(participantItem.dataset.date);
                 }
             });
             elements.levelSelectorModal.closeBtn.addEventListener('click', () => elements.levelSelectorModal.container.classList.remove('is-open'));
@@ -1090,21 +1119,30 @@
             const dateElem = document.getElementById(`date-${dateString}`);
             if (!dateElem) return;
 
-            const validRecords = Object.fromEntries(Object.entries(records).filter(([,r]) => r && r.level > 0));
-            const recordsArray = Object.values(validRecords);
-            const participantCount = recordsArray.length;
-            const totalLevel = recordsArray.reduce((sum, record) => sum + (record.level || 0), 0);
+            const participatingRecords = Object.fromEntries(
+                Object.entries(records || {}).filter(([,r]) => r && (r.level > 0 || (r.comment && r.comment.trim() !== '')))
+            );
+            const participatingRecordsArray = Object.values(participatingRecords);
+
+            const votedRecords = participatingRecordsArray.filter(r => r.level > 0);
+            const participantCount = votedRecords.length;
+            const totalLevel = votedRecords.reduce((sum, record) => sum + (record.level || 0), 0);
+
             document.getElementById(`stats-${dateString}`).innerHTML = `
                 <span class="flex items-center gap-1.5"><svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" /></svg>${participantCount}</span>
                 <span class="flex items-center gap-1.5">${getHeartIcon(3, 1, 'h-4 w-4')}${totalLevel}</span>`;
             
-            const myRecord = validRecords[userId] || { level: 0 };
+            const myRecord = records[userId] || { level: 0 };
             dateElem.classList.toggle('voted-on', myRecord.level > 0);
             const iconButton = dateElem.querySelector('.main-heart-icon');
             if (iconButton) {
                 iconButton.innerHTML = getHeartIcon(myRecord.level, Math.min(0.8 + (totalLevel / 20), 2.0));
             }
-            dateElem.dataset.records = JSON.stringify(validRecords);
+            dateElem.dataset.records = JSON.stringify(participatingRecords);
+            
+            if (dateElem.classList.contains('is-open')) {
+                renderParticipantList(dateString, participatingRecords);
+            }
         }
 
         function toggleParticipantList(clickedItem) {
@@ -1132,24 +1170,44 @@
             recordsArray.sort(([, a], [, b]) => (b.level || 0) - (a.level || 0));
             const profiles = await Promise.all(recordsArray.map(([uid]) => fetchUserProfile(uid)));
             
-            const topLevel = recordsArray.length > 0 ? recordsArray[0][1].level : 0;
-            const topUsers = new Set(recordsArray.filter(([, r]) => r.level === topLevel).map(([uid]) => uid));
-
             const listWrapper = document.createElement('div');
             listWrapper.className = 'space-y-1';
             recordsArray.forEach(([uid, record], index) => {
                 const profile = profiles[index];
                 const isMe = uid === userId;
+                const commentHTML = record.comment ? `<p class="text-xs text-gray-400 truncate mt-0.5">${record.comment}</p>` : '';
+
                 listWrapper.innerHTML += `
-                    <div class="bg-[#2C2C2E] rounded-lg py-1.5 px-3 flex items-center justify-between ${isMe ? 'ring-2 ring-amber-500' : ''}">
-                        <p class="font-medium text-sm text-gray-200 truncate flex-grow">${profile.name}</p>
+                    <div class="participant-item bg-[#2C2C2E] rounded-lg py-2 px-3 flex items-center justify-between cursor-pointer ${isMe ? 'ring-2 ring-amber-500' : ''}" data-user-id="${uid}" data-date="${dateString}">
+                        <div class="flex-grow min-w-0 pr-2">
+                            <p class="font-medium text-sm text-gray-200 truncate">${profile.name}</p>
+                            ${commentHTML}
+                        </div>
                         <div class="flex items-center justify-end gap-1.5 flex-shrink-0">
-                            <div class="w-4 h-4">${getHeartIcon(record.level)}</div>
-                            <span class="font-bold text-sm w-4 text-right text-gray-200">${record.level}</span>
+                            <div class="w-4 h-4">${getHeartIcon(record.level || 0)}</div>
+                            <span class="font-bold text-sm w-4 text-right text-gray-200">${record.level || 0}</span>
                         </div>
                     </div>`;
             });
             listContainer.appendChild(listWrapper);
+        }
+
+        async function openScheduleCommentModal(dateString) {
+            if (!userId) return;
+            const docRef = doc(db, `artifacts/${appId}/public/data/drinking_motivation`, dateString);
+            const docSnap = await getDoc(docRef);
+            let currentComment = '';
+            
+            if (docSnap.exists()) {
+                const records = docSnap.data().records;
+                if (records && records[userId] && records[userId].comment) {
+                    currentComment = records[userId].comment;
+                }
+            }
+
+            elements.commentModal.input.value = currentComment;
+            elements.commentModal.saveBtn.dataset.context = dateString;
+            elements.commentModal.container.classList.add('is-open');
         }
 
         function openLevelSelector(date) {
@@ -1172,16 +1230,20 @@
             if (!userId) return;
             elements.levelSelectorModal.container.classList.remove('is-open');
             const docRef = doc(db, `artifacts/${appId}/public/data/drinking_motivation`, dateString);
-            const fieldPath = `records.${userId}`;
+
             try {
                 if (level === 0) {
-                    await updateDoc(docRef, { [fieldPath]: deleteField() });
+                    const userRecordPath = `records.${userId}`;
+                    await updateDoc(docRef, { [userRecordPath]: deleteField() });
                 } else {
-                    await setDoc(docRef, { records: { [userId]: { level } } }, { merge: true });
+                    const levelFieldPath = `records.${userId}.level`;
+                    await updateDoc(docRef, { [levelFieldPath]: level });
                 }
             } catch (error) {
-                if (error.code === 'not-found' && level > 0) {
-                    await setDoc(docRef, { records: { [userId]: { level } } });
+                if (error.code === 'not-found') {
+                    if (level > 0) {
+                        await setDoc(docRef, { records: { [userId]: { level } } });
+                    }
                 } else {
                     console.error("Save Error:", error);
                 }
